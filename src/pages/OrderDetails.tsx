@@ -1,28 +1,45 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Order } from '../types';
 import { motion } from 'motion/react';
-import { ChevronLeft, Package, Utensils, Truck, CheckCircle2, MapPin, CreditCard, Clock, Loader2, ShoppingBag } from 'lucide-react';
+import { ChevronLeft, Package, Utensils, Truck, CheckCircle2, MapPin, CreditCard, Clock, Loader2, ShoppingBag, X } from 'lucide-react';
 import { format } from 'date-fns';
 import api from '../services/api';
+import toast from 'react-hot-toast';
+
+const steps = [
+  { key: 'pending', label: 'Order Placed', icon: Clock, color: 'text-orange-500', bg: 'bg-orange-50' },
+  { key: 'accepted', label: 'Accepted', icon: CheckCircle2, color: 'text-green-500', bg: 'bg-green-50' },
+  { key: 'preparing', label: 'Preparing', icon: Utensils, color: 'text-blue-500', bg: 'bg-blue-50' },
+  { key: 'out_for_delivery', label: 'Out for Delivery', icon: Truck, color: 'text-purple-500', bg: 'bg-purple-50' },
+  { key: 'delivered', label: 'Delivered', icon: Package, color: 'text-green-600', bg: 'bg-green-100' },
+];
 
 const OrderDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 10000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const fetchOrder = async () => {
+    try {
+      const response = await api.get(`/orders/${id}`);
+      setOrder(response.data);
+    } catch (err) {
+      console.error('Failed to fetch order');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!id) return;
-    const fetchOrder = async () => {
-      try {
-        const response = await api.get(`/orders/${id}`);
-        setOrder(response.data);
-      } catch (err) {
-        console.error('Failed to fetch order');
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchOrder();
     
     // Poll for status updates every 10 seconds since we don't have real-time sockets in this simple local backend
@@ -30,18 +47,26 @@ const OrderDetails: React.FC = () => {
     return () => clearInterval(interval);
   }, [id]);
 
+  const handleCancelOrder = async () => {
+    if (!order) return;
+    const confirmCancel = window.confirm('Are you sure you want to cancel this order?');
+    if (!confirmCancel) return;
+
+    try {
+      await api.post(`/orders/${order.id}/cancel`);
+      toast.success('Order cancelled successfully');
+      fetchOrder();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Cancellation failed');
+    }
+  };
+
+  const currentStepIndex = order ? steps.findIndex(s => s.key === order.status) : -1;
+
+  const canCancel = order && order.status === 'pending' && (now.getTime() - new Date(order.createdAt).getTime() < 5 * 60 * 1000);
+
   if (loading) return <div className="flex justify-center p-20"><Loader2 className="w-10 h-10 text-orange-500 animate-spin" /></div>;
   if (!order) return <div className="text-center py-20">Order not found.</div>;
-
-  const steps = [
-    { key: 'pending', label: 'Order Placed', icon: Clock, color: 'text-orange-500', bg: 'bg-orange-50' },
-    { key: 'accepted', label: 'Accepted', icon: CheckCircle2, color: 'text-green-500', bg: 'bg-green-50' },
-    { key: 'preparing', label: 'Preparing', icon: Utensils, color: 'text-blue-500', bg: 'bg-blue-50' },
-    { key: 'out_for_delivery', label: 'Out for Delivery', icon: Truck, color: 'text-purple-500', bg: 'bg-purple-50' },
-    { key: 'delivered', label: 'Delivered', icon: Package, color: 'text-green-600', bg: 'bg-green-100' },
-  ];
-
-  const currentStepIndex = steps.findIndex(s => s.key === order.status);
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-20">
@@ -54,7 +79,7 @@ const OrderDetails: React.FC = () => {
           <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Order Tracking</h1>
           <p className="text-gray-400 font-mono text-sm tracking-widest font-bold">ID: {order.id}</p>
         </div>
-        <div className="text-right">
+        <div className="flex flex-col items-end gap-2 text-right">
           <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-1">Status</p>
           <span className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border ${
             order.status === 'delivered' ? 'bg-green-50 text-green-600 border-green-100' :
@@ -63,6 +88,14 @@ const OrderDetails: React.FC = () => {
           }`}>
             {order.status.replace('_', ' ')}
           </span>
+          {canCancel && (
+            <button 
+              onClick={handleCancelOrder}
+              className="text-xs font-bold text-red-500 hover:bg-red-50 px-4 py-2 rounded-2xl border border-red-100 transition-all mt-2"
+            >
+              Cancel Order
+            </button>
+          )}
         </div>
       </div>
 

@@ -443,6 +443,44 @@ async function startServer() {
     }
   });
 
+  app.post("/api/orders/:id/cancel", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader) return res.status(401).json({ message: "No authorization header" });
+      
+      const token = authHeader.split(" ")[1];
+      const decoded: any = jwt.verify(token, JWT_SECRET);
+
+      const db = await getDb();
+      const user = db.users.find((u: any) => u.uid === decoded.uid);
+      const targetId = String(req.params.id).trim();
+      const order = db.orders.find((o: any) => String(o.id).trim() === targetId);
+
+      if (!order) return res.status(404).json({ message: "Order not found" });
+
+      // Security check: Only owner or admin can cancel
+      if (order.userId !== decoded.uid && user?.role !== 'admin') {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      // Time check: Only within 5 minutes (300,000 ms) for users
+      if (user?.role !== 'admin') {
+        const orderTime = new Date(order.createdAt).getTime();
+        const now = new Date().getTime();
+        if (now - orderTime > 5 * 60 * 1000) {
+          return res.status(400).json({ message: "Cancellation window (5 mins) has expired" });
+        }
+      }
+
+      order.status = "cancelled";
+      order.updatedAt = new Date().toISOString();
+      await saveDb(db);
+      res.json({ message: "Order cancelled successfully", order });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Failed to cancel order" });
+    }
+  });
+
   // --- Health Check ---
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", mode: process.env.NODE_ENV });
