@@ -97,22 +97,33 @@ const AdminDashboard: React.FC = () => {
   };
 
   const handleDeleteProduct = async (productId: string | number) => {
-    console.log('handleDeleteProduct called with:', productId);
-    if (productId === undefined || productId === null) return;
+    console.log('[DEBUG] handleDeleteProduct initiated for ID:', productId);
+    if (productId === undefined || productId === null) {
+      console.warn('[DEBUG] No productId provided to handleDeleteProduct');
+      return;
+    }
+
     const confirmDelete = window.confirm('Are you sure you want to delete this food item?');
-    if (!confirmDelete) return;
+    if (!confirmDelete) {
+      console.log('[DEBUG] Delete cancelled by user');
+      return;
+    }
 
     try {
-      console.log('Sending DELETE request for product:', productId);
+      console.log('[DEBUG] Executing api.delete for product:', productId);
       const response = await api.delete(`/products/${productId}`);
-      console.log('Delete response:', response.data);
+      console.log('[DEBUG] Delete successful:', response.data);
       toast.success(response.data.message || 'Deleted successfully');
       await fetchData();
     } catch (error: any) {
-      console.error('Delete error for product:', productId, error);
-      const serverMsg = error.response?.data?.message;
-      const errorMsg = serverMsg || error.message || 'Delete failed';
-      toast.error(errorMsg);
+      console.error('[DEBUG] Product delete FAILED:', {
+        productId,
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      const errorMsg = error.response?.data?.message || error.message || 'Delete failed';
+      toast.error(`Error: ${errorMsg}`);
     }
   };
 

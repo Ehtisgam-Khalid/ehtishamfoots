@@ -150,28 +150,33 @@ async function startServer() {
       }
 
       const targetId = String(req.params.id).trim();
-      console.log(`[ADMIN DELETE] Request for product ID: "${targetId}"`);
+      console.log(`[ADMIN DELETE PRODUCT] Start - Request for ID: "${targetId}"`);
+      console.log(`[ADMIN DELETE PRODUCT] Current User Role: ${user?.role}`);
       
       const index = db.products.findIndex((p: any) => String(p.id).trim() === targetId);
+      console.log(`[ADMIN DELETE PRODUCT] Initial search index: ${index}`);
       
       if (index === -1) {
-        // Try case-insensitive as fallback
+        console.log(`[ADMIN DELETE PRODUCT] Not found with exact match. Trying case-insensitive...`);
         const indexCI = db.products.findIndex((p: any) => String(p.id).trim().toLowerCase() === targetId.toLowerCase());
+        console.log(`[ADMIN DELETE PRODUCT] Case-insensitive search index: ${indexCI}`);
         
         if (indexCI === -1) {
-          console.log(`[ADMIN DELETE] Product not found. ID: "${targetId}". Available IDs: ${db.products.map((p: any) => p.id).join(", ")}`);
+          const availableIds = db.products.map((p: any) => String(p.id).trim());
+          console.log(`[ADMIN DELETE PRODUCT] Failed - ID not found. Available IDs:`, availableIds);
           return res.status(404).json({ 
             message: `Product not found (ID: ${targetId})`,
-            availableIds: db.products.map((p: any) => p.id)
+            details: `Searched in ${availableIds.length} products`,
+            availableIds: availableIds.slice(0, 10) // Send first 10 for debugging
           });
         }
-        // If found case-insensitive, use that index
         db.products.splice(indexCI, 1);
       } else {
         db.products.splice(index, 1);
       }
 
       await saveDb(db);
+      console.log(`[ADMIN DELETE PRODUCT] Success - Deleted ID: ${targetId}`);
       res.json({ message: "Product deleted successfully" });
     } catch (err) {
       console.error("Delete product error:", err);
