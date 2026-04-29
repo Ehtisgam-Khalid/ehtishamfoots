@@ -426,6 +426,11 @@ async function startServer() {
         finalTotal -= 50;
       }
 
+      // Add delivery fee if provided
+      if (req.body.deliveryFee) {
+        finalTotal += Number(req.body.deliveryFee);
+      }
+
       const order = {
         id: nanoid(),
         userId: decoded.uid,
@@ -598,6 +603,42 @@ async function startServer() {
       res.json({ message: "Order cancelled successfully", order });
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Failed to cancel order" });
+    }
+  });
+
+  // --- Review Routes ---
+  app.get("/api/reviews", async (req, res) => {
+    const db = await getDb();
+    res.json(db.reviews || []);
+  });
+
+  app.post("/api/reviews", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader) return res.status(401).json({ message: "Unauthorized" });
+      
+      const token = authHeader.split(" ")[1];
+      const decoded: any = jwt.verify(token, JWT_SECRET);
+
+      const db = await getDb();
+      const user = db.users.find((u: any) => u.uid === decoded.uid);
+      if (!user) return res.status(401).json({ message: "User not found" });
+
+      const review = {
+        id: nanoid(),
+        userId: decoded.uid,
+        userName: user.name,
+        ...req.body,
+        createdAt: new Date().toISOString()
+      };
+
+      if (!db.reviews) db.reviews = [];
+      db.reviews.push(review);
+      await saveDb(db);
+      
+      res.status(201).json(review);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to post review" });
     }
   });
 

@@ -9,6 +9,8 @@ import toast from 'react-hot-toast';
 import api from '../services/api';
 import { formatPrice } from '../lib/utils';
 
+import { ReviewsList } from '../components/ReviewsList';
+
 const Home: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -161,7 +163,7 @@ const Home: React.FC = () => {
         <AnimatePresence mode="popLayout">
           <motion.div 
             layout
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8"
           >
             {filteredProducts.map(product => (
               <motion.div 
@@ -170,9 +172,9 @@ const Home: React.FC = () => {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="group bg-white dark:bg-gray-900 rounded-[2.5rem] overflow-hidden border border-gray-100 dark:border-gray-800 hover:border-orange-100 dark:hover:border-orange-500/30 transition-all hover:shadow-2xl hover:shadow-gray-100 dark:hover:shadow-none"
+                className="group bg-white dark:bg-gray-900 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden border border-gray-100 dark:border-gray-800 hover:border-orange-100 dark:hover:border-orange-500/30 transition-all hover:shadow-2xl hover:shadow-gray-100 dark:hover:shadow-none"
               >
-                <div className="relative h-56 overflow-hidden">
+                <div className="relative h-48 md:h-56 overflow-hidden">
                   <img 
                     src={product.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=1000'} 
                     alt={product.title} 
@@ -180,13 +182,13 @@ const Home: React.FC = () => {
                     referrerPolicy="no-referrer"
                     loading="lazy"
                   />
-                  <div className="absolute top-6 right-6 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md px-4 py-2 rounded-2xl text-orange-600 dark:text-orange-400 font-black text-sm shadow-xl tabular-nums">
+                  <div className="absolute top-4 right-4 md:top-6 md:right-6 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md px-3 py-1.5 md:px-4 md:py-2 rounded-xl md:rounded-2xl text-orange-600 dark:text-orange-400 font-black text-xs md:text-sm shadow-xl tabular-nums">
                     {formatPrice(product.price)}
                   </div>
                 </div>
-                <div className="p-8 space-y-4">
+                <div className="p-6 md:p-8 space-y-4">
                   <div className="space-y-1">
-                    <span className="text-[10px] uppercase tracking-[0.2em] font-black text-orange-500">
+                    <span className="text-[9px] md:text-[10px] uppercase tracking-[0.2em] font-black text-orange-500">
                       {categories.find(c => c.id === product.categoryId)?.name || product.category}
                     </span>
                     <h3 className="font-black text-xl text-gray-900 dark:text-white group-hover:text-orange-600 transition-colors line-clamp-1">{product.title}</h3>
@@ -213,6 +215,8 @@ const Home: React.FC = () => {
           <p className="text-gray-400 dark:text-gray-500 font-black uppercase tracking-widest text-xs">No food items match your search.</p>
         </div>
       )}
+
+      <ReviewsList />
     </div>
   );
 };

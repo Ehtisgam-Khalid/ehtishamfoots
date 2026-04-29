@@ -25,6 +25,7 @@ const AdminDashboard: React.FC = () => {
     title: '',
     price: 0,
     category: '',
+    categoryId: '',
     description: '',
     image: '',
     available: true
@@ -497,8 +498,16 @@ const AdminDashboard: React.FC = () => {
               </div>
               <div>
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 block">Category</label>
-                <select required value={editingProduct.category} onChange={e => setEditingProduct({...editingProduct, category: e.target.value})} className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-orange-500 rounded-[1.5rem] outline-none dark:text-white font-bold appearance-none">
-                  {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                <select 
+                  required 
+                  value={editingProduct.categoryId} 
+                  onChange={e => {
+                    const cat = categories.find(c => c.id === e.target.value);
+                    setEditingProduct({...editingProduct, categoryId: e.target.value, category: cat?.name || ''});
+                  }} 
+                  className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-orange-500 rounded-[1.5rem] outline-none dark:text-white font-bold appearance-none"
+                >
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
               <div className="sm:col-span-2">
@@ -538,9 +547,17 @@ const AdminDashboard: React.FC = () => {
               </div>
               <div>
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 block">Food Category</label>
-                <select required value={newProduct.category} onChange={e => setNewProduct({...newProduct, category: e.target.value})} className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-orange-500 rounded-[1.5rem] outline-none dark:text-white font-bold appearance-none">
+                <select 
+                  required 
+                  value={newProduct.categoryId} 
+                  onChange={e => {
+                    const cat = categories.find(c => c.id === e.target.value);
+                    setNewProduct({...newProduct, categoryId: e.target.value, category: cat?.name || ''});
+                  }} 
+                  className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-orange-500 rounded-[1.5rem] outline-none dark:text-white font-bold appearance-none"
+                >
                   <option value="">Choose...</option>
-                  {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
               <div className="sm:col-span-2">

@@ -19,6 +19,7 @@ const Cart: React.FC = () => {
   const [address, setAddress] = useState('');
   const [addons, setAddons] = useState<Product[]>([]);
   const [distance, setDistance] = useState<number | null>(null);
+  const [deliveryType, setDeliveryType] = useState<'standard' | 'express'>('standard');
 
   // Restaurant Location (e.g., Karachi Central)
   const RESTAURANT_LOC = { lat: 24.9107, lon: 67.0924 };
@@ -53,7 +54,9 @@ const Cart: React.FC = () => {
   // Dynamic Delivery Fee Logic:
   // <= 2km: Rs. 250
   // > 2km: Rs. 400
-  const deliveryFee = distance === null ? 0 : (distance <= 2 ? 250 : 400);
+  // Express: Add Rs. 150 extra
+  const baseDeliveryFee = distance === null ? 0 : (distance <= 2 ? 250 : 400);
+  const deliveryFee = baseDeliveryFee + (deliveryType === 'express' ? 150 : 0);
   
   const finalTotal = Math.max(0, total - discount + deliveryFee);
 
@@ -271,10 +274,38 @@ const Cart: React.FC = () => {
       </div>
 
       <div className="space-y-8">
-        <div className="bg-white dark:bg-gray-900 rounded-[3rem] border border-gray-100 dark:border-gray-800 shadow-2xl shadow-gray-100 dark:shadow-none p-10 space-y-8 sticky top-24">
+        <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-2xl shadow-gray-100 dark:shadow-none p-6 sm:p-10 space-y-8 sticky top-24">
           <h2 className="text-3xl font-black text-gray-900 dark:text-white">Checkout</h2>
           
           <div className="space-y-6">
+            <div className="space-y-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 pl-1">Delivery Speed</p>
+              <div className="grid grid-cols-2 gap-3">
+                <button 
+                  onClick={() => setDeliveryType('standard')}
+                  className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-1 ${
+                    deliveryType === 'standard' 
+                    ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/20' 
+                    : 'border-transparent bg-gray-50 dark:bg-gray-800'
+                  }`}
+                >
+                  <span className="font-black text-sm text-gray-900 dark:text-white">Standard</span>
+                  <span className="text-[10px] font-bold text-gray-400">Regular Speed</span>
+                </button>
+                <button 
+                  onClick={() => setDeliveryType('express')}
+                  className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-1 ${
+                    deliveryType === 'express' 
+                    ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/20' 
+                    : 'border-transparent bg-gray-50 dark:bg-gray-800'
+                  }`}
+                >
+                  <span className="font-black text-sm text-gray-900 dark:text-white">Express ⚡</span>
+                  <span className="text-[10px] font-bold text-gray-400">Extra Rs. 150</span>
+                </button>
+              </div>
+            </div>
+
             <div className="space-y-4">
               <div className="flex justify-between items-center mb-1">
                 <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Delivery Address</label>

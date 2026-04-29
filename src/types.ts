@@ -58,4 +58,16 @@ export interface Order {
   hiddenForAdmin?: boolean;
   hiddenForUser?: boolean;
   discount?: number;
+  deliveryFee?: number;
+}
+
+export interface Review {
+  id: string;
+  orderId: string;
+  userId: string;
+  userName: string;
+  productId?: string; // Optional if reviewing full order
+  rating: number;
+  comment: string;
+  createdAt: string;
 }

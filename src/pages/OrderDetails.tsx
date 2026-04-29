@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Order } from '../types';
 import { motion } from 'motion/react';
-import { ChevronLeft, Package, Utensils, Truck, CheckCircle2, MapPin, CreditCard, Clock, Loader2, ShoppingBag, X, Info } from 'lucide-react';
+import { ChevronLeft, Package, Utensils, Truck, CheckCircle2, MapPin, CreditCard, Clock, Loader2, ShoppingBag, X, Info, Star } from 'lucide-react';
 import { format } from 'date-fns';
 import api from '../services/api';
 import toast from 'react-hot-toast';
@@ -10,6 +10,7 @@ import { CircularTimer } from '../components/CircularTimer';
 import { formatPrice } from '../lib/utils';
 import { io } from 'socket.io-client';
 import { useAuth } from '../contexts/AuthContext';
+import { ReviewModal } from '../components/ReviewModal';
 
 const steps = [
   { key: 'pending', label: 'Order Placed', icon: Clock, color: 'text-orange-500', bg: 'bg-orange-50' },
@@ -26,6 +27,8 @@ const OrderDetails: React.FC = () => {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(new Date());
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [hasReviewed, setHasReviewed] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 10000);
@@ -120,6 +123,17 @@ const OrderDetails: React.FC = () => {
             </div>
 
             <CircularTimer status={order.status} />
+
+            {order.status === 'delivered' && !hasReviewed && (
+              <div className="mt-8">
+                <button 
+                  onClick={() => setShowReviewModal(true)}
+                  className="bg-orange-500 text-white px-8 py-4 rounded-2xl font-black flex items-center gap-3 hover:bg-orange-600 transition-all active:scale-95 shadow-xl shadow-orange-500/20"
+                >
+                  <Star className="w-5 h-5 fill-white" /> Rate This Order
+                </button>
+              </div>
+            )}
 
             <div className="w-full mt-12">
               <div className="flex flex-col space-y-8">
@@ -270,6 +284,13 @@ const OrderDetails: React.FC = () => {
           </div>
         </div>
       </div>
+      
+      <ReviewModal 
+        isOpen={showReviewModal}
+        onClose={() => setShowReviewModal(false)}
+        orderId={order.id}
+        onSuccess={() => setHasReviewed(true)}
+      />
     </div>
   );
 };
