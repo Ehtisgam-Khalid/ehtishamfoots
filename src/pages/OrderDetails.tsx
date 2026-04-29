@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Order } from '../types';
 import { motion } from 'motion/react';
-import { ChevronLeft, Package, Utensils, Truck, CheckCircle2, MapPin, CreditCard, Clock, Loader2, ShoppingBag, X } from 'lucide-react';
+import { ChevronLeft, Package, Utensils, Truck, CheckCircle2, MapPin, CreditCard, Clock, Loader2, ShoppingBag, X, Info } from 'lucide-react';
 import { format } from 'date-fns';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import { CircularTimer } from '../components/CircularTimer';
 
 const steps = [
   { key: 'pending', label: 'Order Placed', icon: Clock, color: 'text-orange-500', bg: 'bg-orange-50' },
@@ -42,7 +43,7 @@ const OrderDetails: React.FC = () => {
     if (!id) return;
     fetchOrder();
     
-    // Poll for status updates every 10 seconds since we don't have real-time sockets in this simple local backend
+    // Poll for status updates every 10 seconds
     const interval = setInterval(fetchOrder, 10000);
     return () => clearInterval(interval);
   }, [id]);
@@ -62,143 +63,174 @@ const OrderDetails: React.FC = () => {
   };
 
   const currentStepIndex = order ? steps.findIndex(s => s.key === order.status) : -1;
-
   const canCancel = order && order.status === 'pending' && (now.getTime() - new Date(order.createdAt).getTime() < 5 * 60 * 1000);
 
   if (loading) return <div className="flex justify-center p-20"><Loader2 className="w-10 h-10 text-orange-500 animate-spin" /></div>;
-  if (!order) return <div className="text-center py-20">Order not found.</div>;
+  if (!order) return <div className="text-center py-20 font-bold text-gray-500">Order not found.</div>;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-20">
-      <Link to="/orders" className="flex items-center gap-2 text-gray-500 font-bold hover:text-orange-500 transition-colors">
-        <ChevronLeft className="w-5 h-5" /> Back to Orders
-      </Link>
-
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-8 rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-50">
-        <div>
-          <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Order Tracking</h1>
-          <p className="text-gray-400 font-mono text-sm tracking-widest font-bold">ID: {order.id}</p>
-        </div>
-        <div className="flex flex-col items-end gap-2 text-right">
-          <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-1">Status</p>
-          <span className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border ${
-            order.status === 'delivered' ? 'bg-green-50 text-green-600 border-green-100' :
-            order.status === 'cancelled' ? 'bg-red-50 text-red-600 border-red-100' :
-            'bg-orange-50 text-orange-600 border-orange-100'
-          }`}>
-            {order.status.replace('_', ' ')}
-          </span>
-          {canCancel && (
-            <button 
-              onClick={handleCancelOrder}
-              className="text-xs font-bold text-red-500 hover:bg-red-50 px-4 py-2 rounded-2xl border border-red-100 transition-all mt-2"
-            >
-              Cancel Order
-            </button>
-          )}
-        </div>
+    <div className="max-w-5xl mx-auto space-y-8 pb-32 px-4 sm:px-0">
+      <div className="flex items-center justify-between">
+        <Link to="/orders" className="group flex items-center gap-2 text-gray-400 font-bold hover:text-gray-900 transition-all">
+          <div className="bg-white p-2 rounded-xl border border-gray-100 group-hover:bg-gray-50 transition-colors">
+            <ChevronLeft className="w-5 h-5" /> 
+          </div>
+          Back to Orders
+        </Link>
+        <span className="text-[10px] font-bold text-gray-300 uppercase tracking-[0.2em] font-mono">
+          Placed on {format(new Date(order.createdAt), 'MMM dd, p')}
+        </span>
       </div>
 
-      {/* Tracking Stepper */}
-      {order.status !== 'cancelled' && (
-        <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-50">
-          <div className="relative flex justify-between items-center max-w-2xl mx-auto">
-            {/* Progress Line */}
-            <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1 bg-gray-100">
-              <motion.div 
-                initial={{ width: 0 }}
-                animate={{ width: `${(currentStepIndex / (steps.length - 1)) * 100}%` }}
-                className="h-full bg-orange-500 transition-all duration-1000"
-              />
+      {/* Main Tracking Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-8">
+          <div className="bg-white p-8 sm:p-12 rounded-[3rem] border border-gray-100 shadow-2xl shadow-gray-100 flex flex-col items-center text-center relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-8">
+               <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm ${
+                order.status === 'delivered' ? 'bg-green-50 text-green-600 border-green-100' :
+                order.status === 'cancelled' ? 'bg-red-50 text-red-600 border-red-100' :
+                'bg-orange-50 text-orange-600 border-orange-100 animate-pulse'
+              }`}>
+                {order.status.replace('_', ' ')}
+              </span>
             </div>
-            
-            {steps.map((step, index) => {
-              const isCompleted = index <= currentStepIndex;
-              const isCurrent = index === currentStepIndex;
-              return (
-                <div key={step.key} className="relative z-10 flex flex-col items-center gap-3">
+
+            <div className="space-y-4 mb-8">
+              <h1 className="text-3xl sm:text-4xl font-black text-gray-900 leading-tight">Track Your Feast</h1>
+              <p className="text-gray-400 font-bold text-sm tracking-widest">ORDER #{order.id.slice(0, 8).toUpperCase()}</p>
+            </div>
+
+            <CircularTimer status={order.status} />
+
+            <div className="w-full max-w-lg mt-12 space-y-8">
+              <div className="relative flex justify-between items-center">
+                <div className="absolute left-0 right-0 top-6 h-0.5 bg-gray-50">
                   <motion.div 
-                    initial={false}
-                    animate={{ 
-                      scale: isCurrent ? 1.2 : 1,
-                      backgroundColor: isCompleted ? '#f97316' : '#fff',
-                      borderColor: isCompleted ? '#f97316' : '#f3f4f6'
-                    }}
-                    className={`w-12 h-12 rounded-2xl border-4 flex items-center justify-center transition-all shadow-sm`}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${(currentStepIndex / (steps.length - 1)) * 100}%` }}
+                    className="h-full bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]"
+                  />
+                </div>
+                
+                {steps.map((step, index) => {
+                  const isCompleted = index <= currentStepIndex;
+                  const isCurrent = index === currentStepIndex;
+                  return (
+                    <div key={step.key} className="relative z-10 flex flex-col items-center gap-4">
+                      <motion.div 
+                        initial={false}
+                        animate={{ 
+                          scale: isCurrent ? 1.25 : 1,
+                          backgroundColor: isCompleted ? '#f97316' : '#fff',
+                          borderColor: isCompleted ? '#f97316' : '#f9fafb'
+                        }}
+                        className={`w-12 h-12 rounded-2xl border-2 flex items-center justify-center transition-all shadow-xl ${isCurrent ? 'shadow-orange-200' : 'shadow-gray-50'}`}
+                      >
+                        {React.createElement(step.icon as any, { 
+                          className: `w-5 h-5 ${isCompleted ? 'text-white' : 'text-gray-300'}` 
+                        })}
+                      </motion.div>
+                      <span className={`text-[9px] font-black uppercase tracking-widest text-center ${isCompleted ? 'text-gray-900' : 'text-gray-300'}`}>
+                        {step.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {canCancel && (
+                <div className="pt-8 border-t border-gray-50 flex flex-col items-center gap-4">
+                  <div className="flex items-center gap-2 text-xs font-bold text-gray-400">
+                    <Info className="w-4 h-4" /> Change of heart? You have 5 minutes to cancel.
+                  </div>
+                  <button 
+                    onClick={handleCancelOrder}
+                    className="w-full sm:w-auto px-10 py-4 rounded-2xl bg-red-50 text-red-600 font-bold hover:bg-red-100 transition-all border border-red-100"
                   >
-                    {React.createElement(step.icon as any, { 
-                      className: `w-6 h-6 ${isCompleted ? 'text-white' : 'text-gray-300'}` 
-                    })}
-                  </motion.div>
-                  <span className={`text-[10px] font-black uppercase tracking-tighter text-center max-w-[60px] ${isCompleted ? 'text-gray-900' : 'text-gray-400'}`}>
-                    {step.label}
+                    Cancel Order
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-gray-50 space-y-6">
+              <h3 className="text-lg font-black text-gray-900 flex items-center gap-3">
+                <div className="bg-orange-50 p-2 rounded-xl"><MapPin className="w-5 h-5 text-orange-500" /></div>
+                Delivery Address
+              </h3>
+              <div className="space-y-4">
+                <p className="text-gray-500 font-bold text-sm uppercase tracking-widest">{order.userName}</p>
+                <p className="text-gray-700 font-medium leading-relaxed bg-gray-50 p-6 rounded-2xl border border-gray-100">
+                  {order.address}
+                </p>
+                <p className="text-gray-400 font-bold text-xs">{order.userPhone}</p>
+              </div>
+            </div>
+
+            <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-gray-50 space-y-6">
+              <h3 className="text-lg font-black text-gray-900 flex items-center gap-3">
+                <div className="bg-green-50 p-2 rounded-xl"><CreditCard className="w-5 h-5 text-green-500" /></div>
+                Payment Method
+              </h3>
+              <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100 space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-bold uppercase tracking-[0.2em] text-gray-400">{order.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Payment'}</span>
+                  <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${
+                    order.paymentStatus === 'paid' ? 'bg-green-100 text-green-700 border-green-200' : 'bg-orange-100 text-orange-700 border-orange-200'
+                  }`}>
+                    {order.paymentStatus}
                   </span>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Order Summary */}
-        <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-50 space-y-6">
-          <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <ShoppingBag className="w-5 h-5 text-orange-500" /> Order Summary
-          </h3>
-          <div className="space-y-4">
-            {order.items.map((item, i) => (
-              <div key={i} className="flex gap-4">
-                <img 
-                  src={item.image} 
-                  alt={item.title} 
-                  className="w-16 h-16 rounded-xl object-cover" 
-                  referrerPolicy="no-referrer"
-                />
-                <div className="flex-1">
-                  <h4 className="font-bold text-gray-900">{item.title}</h4>
-                  <p className="text-gray-500 text-sm font-medium">x{item.quantity}</p>
-                </div>
-                <p className="font-black text-gray-900">${(item.price * item.quantity).toFixed(2)}</p>
               </div>
-            ))}
-          </div>
-          <div className="pt-6 border-t border-gray-50 space-y-2">
-            <div className="flex justify-between text-gray-500 font-medium text-sm">
-              <span>Subtotal</span>
-              <span>${order.total.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-gray-500 font-medium text-sm">
-              <span>Delivery Fee</span>
-              <span>$5.00</span>
-            </div>
-            <div className="flex justify-between text-xl font-black text-gray-900 pt-2">
-              <span>Total</span>
-              <span>${(order.total + 5).toFixed(2)}</span>
             </div>
           </div>
         </div>
 
-        {/* Delivery Details */}
+        {/* Sidebar Summary */}
         <div className="space-y-8">
-          <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-50 space-y-6">
-            <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-orange-500" /> Delivery Details
+          <div className="bg-gray-900 text-white p-8 rounded-[2.5rem] shadow-2xl shadow-gray-200 space-y-8 h-fit">
+            <h3 className="text-xl font-bold flex items-center gap-3">
+              <ShoppingBag className="w-6 h-6 text-orange-500" /> Order Summary
             </h3>
-            <p className="text-gray-600 font-medium bg-gray-50 p-4 rounded-2xl border border-gray-100">
-              {order.deliveryAddress || 'No address provided.'}
-            </p>
-          </div>
+            <div className="space-y-6">
+              {order.items.map((item, i) => (
+                <div key={i} className="flex gap-4 items-center">
+                  <div className="relative">
+                    <img 
+                      src={item.image} 
+                      alt={item.title} 
+                      className="w-16 h-16 rounded-2xl object-cover ring-2 ring-gray-800" 
+                      referrerPolicy="no-referrer"
+                    />
+                    <span className="absolute -top-2 -right-2 bg-orange-500 text-white w-6 h-6 rounded-full text-[10px] font-black flex items-center justify-center border-2 border-gray-900">
+                      {item.quantity}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-bold text-sm truncate">{item.title}</h4>
+                    <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest">${item.price.toFixed(2)} / unit</p>
+                  </div>
+                  <p className="font-black text-sm text-orange-400">${(item.price * item.quantity).toFixed(2)}</p>
+                </div>
+              ))}
+            </div>
 
-          <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-50 space-y-6">
-            <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-              <CreditCard className="w-5 h-5 text-orange-500" /> Payment Info
-            </h3>
-            <div className="flex justify-between items-center p-4 bg-gray-50 rounded-2xl border border-gray-100">
-              <span className="text-sm font-bold uppercase tracking-widest text-gray-400">{order.paymentMethod}</span>
-              <span className={`text-xs font-black uppercase tracking-widest ${order.paymentStatus === 'paid' ? 'text-green-600' : 'text-orange-600'}`}>
-                {order.paymentStatus}
-              </span>
+            <div className="pt-8 border-t border-gray-800 space-y-4">
+              <div className="flex justify-between text-gray-400 font-bold text-xs uppercase tracking-widest">
+                <span>Subtotal</span>
+                <span>${order.total.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-gray-400 font-bold text-xs uppercase tracking-widest">
+                <span>Delivery</span>
+                <span className="text-green-500">FREE</span>
+              </div>
+              <div className="flex justify-between text-2xl font-black text-white pt-2">
+                <span>Total</span>
+                <span className="text-orange-500">${order.total.toFixed(2)}</span>
+              </div>
             </div>
           </div>
         </div>

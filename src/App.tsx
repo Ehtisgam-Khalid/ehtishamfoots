@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 
@@ -78,9 +79,11 @@ export default function App() {
   return (
     <Router>
       <AuthProvider>
-        <CartProvider>
-          <AppContent />
-        </CartProvider>
+        <NotificationProvider>
+          <CartProvider>
+            <AppContent />
+          </CartProvider>
+        </NotificationProvider>
       </AuthProvider>
     </Router>
   );

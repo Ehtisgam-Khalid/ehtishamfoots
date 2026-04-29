@@ -3,9 +3,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { Order } from '../types';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { ShoppingBag, ChevronRight, Clock, CheckCircle2, Truck, Timer } from 'lucide-react';
+import { ShoppingBag, ChevronRight, Clock, CheckCircle2, Truck, Timer, X } from 'lucide-react';
 import { format } from 'date-fns';
 import api from '../services/api';
+import toast from 'react-hot-toast';
 
 const Orders: React.FC = () => {
   const { user } = useAuth();

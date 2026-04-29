@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import { Plus, Trash2, Edit3, Package, ShoppingBag, LayoutDashboard, Settings, Loader2, Check, X, CreditCard } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
+import { io } from 'socket.io-client';
 
 const AdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'stats' | 'products' | 'orders' | 'categories'>('stats');
@@ -50,6 +51,18 @@ const AdminDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchData();
+
+    // Socket listener for new orders
+    const socket = io(window.location.origin);
+    socket.emit('join_admin');
+    
+    socket.on('new_order', (newOrder) => {
+      setOrders(prev => [newOrder, ...prev]);
+    });
+
+    return () => {
+      socket.close();
+    };
   }, []);
 
   const handleUpdateOrderStatus = async (orderId: string, status: string) => {

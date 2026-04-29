@@ -6,6 +6,8 @@ import fs from "fs/promises";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { nanoid } from "nanoid";
+import { createServer } from "http";
+import { Server } from "socket.io";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,9 +26,48 @@ async function saveDb(db: any) {
 
 async function startServer() {
   const app = express();
+  const httpServer = createServer(app);
+  const io = new Server(httpServer, {
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST"]
+    }
+  });
   const PORT = 3000;
 
   app.use(express.json());
+
+  // Socket.io connection
+  io.on("connection", (socket) => {
+    console.log("Client connected:", socket.id);
+    
+    socket.on("join", (userId) => {
+      socket.join(userId);
+      console.log(`User ${userId} joined their room`);
+    });
+
+    socket.on("join_admin", () => {
+      socket.join("admins");
+      console.log("Admin joined admin room");
+    });
+
+    socket.on("disconnect", () => {
+      console.log("Client disconnected");
+    });
+  });
+
+  // Helper to emit events
+  const notifyAdmins = (event: string, data: any) => {
+    io.to("admins").emit(event, data);
+  };
+
+  const notifyUser = (userId: string, event: string, data: any) => {
+    io.to(userId).emit(event, data);
+  };
+
+  const notifyAll = (event: string, data: any) => {
+    io.emit(event, data);
+  };
 
   // --- Auth Routes ---
   app.post("/api/auth/register", async (req, res) => {
@@ -128,6 +169,9 @@ async function startServer() {
 
       db.products.push(product);
       await saveDb(db);
+      
+      notifyAll("new_product", { title: product.title });
+      
       res.status(201).json(product);
     } catch (err) {
       console.error("Add product error:", err);
@@ -335,6 +379,9 @@ async function startServer() {
 
       db.orders.push(order);
       await saveDb(db);
+      
+      notifyAdmins("new_order", order);
+      
       res.status(201).json(order);
     } catch (err) {
       res.status(500).json({ message: "Failed to place order" });
@@ -402,6 +449,9 @@ async function startServer() {
       db.orders[index].status = req.body.status;
       db.orders[index].updatedAt = new Date().toISOString();
       await saveDb(db);
+      
+      notifyUser(db.orders[index].userId, "order_status_update", db.orders[index]);
+      
       res.json(db.orders[index]);
     } catch (err) {
       res.status(500).json({ message: "Update failed" });
@@ -509,7 +559,7 @@ async function startServer() {
     res.status(404).json({ message: "API endpoint not found" });
   });
 
-  app.listen(PORT, "0.0.0.0", () => {
+  httpServer.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 }
