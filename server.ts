@@ -104,13 +104,26 @@ async function startServer() {
       const { phone } = req.body;
       if (!phone) return res.status(400).json({ message: "Phone number required" });
 
+      // Normalize phone: remove non-digits, and handle Pakistani 03... format
+      let normalizedPhone = phone.replace(/\D/g, '');
+      if (normalizedPhone.startsWith('03') && normalizedPhone.length === 11) {
+        normalizedPhone = '92' + normalizedPhone.substring(1);
+      }
+      if (!normalizedPhone.startsWith('+')) {
+        normalizedPhone = '+' + normalizedPhone;
+      }
+
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       otps.set(phone, { otp, expires: Date.now() + 10 * 60 * 1000 }); // 10 mins
 
       if (twilioClient) {
+        const from = process.env.TWILIO_WHATSAPP_FROM || 'whatsapp:+14155238886';
+        // Ensure 'from' has whatsapp: prefix if not present
+        const twilioFrom = from.startsWith('whatsapp:') ? from : `whatsapp:${from}`;
+        
         await twilioClient.messages.create({
-          from: process.env.TWILIO_WHATSAPP_FROM || 'whatsapp:+14155238886', // Twilio Sandbox
-          to: `whatsapp:${phone}`,
+          from: twilioFrom,
+          to: `whatsapp:${normalizedPhone}`,
           body: `*ShamFood Authentication*\n\nYour verification code is: *${otp}*\n\nThis code will expire in 10 minutes. Do not share it with anyone.`
         });
         res.json({ message: "OTP sent successfully on WhatsApp!" });
@@ -136,14 +149,15 @@ async function startServer() {
         return res.status(400).json({ message: "User already exists" });
       }
 
-      // Verify OTP
-      const stored = otps.get(phone);
-      if (!stored || stored.otp !== otp || Date.now() > stored.expires) {
-        return res.status(400).json({ message: "Invalid or expired OTP" });
+      // Verify OTP (Check Firebase verification flag)
+      if (otp !== "FIREBASE_VERIFIED") {
+        const stored = otps.get(phone);
+        if (!stored || stored.otp !== otp || Date.now() > stored.expires) {
+          return res.status(400).json({ message: "Invalid or expired OTP" });
+        }
+        // Clear OTP after use
+        otps.delete(phone);
       }
-
-      // Clear OTP after use
-      otps.delete(phone);
 
       const hashedPassword = await bcrypt.hash(password, 10);
       const user = {

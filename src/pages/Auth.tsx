@@ -6,6 +6,9 @@ import { Mail, Lock, User, LogIn, UserPlus, Eye, EyeOff, Phone, Smartphone, Chec
 import toast from 'react-hot-toast';
 import api from '../services/api';
 
+import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
+import { auth } from '../lib/firebase';
+
 const Auth: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -16,21 +19,53 @@ const Auth: React.FC = () => {
   const [otpStep, setOtpStep] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const { login, register } = useAuth();
   const navigate = useNavigate();
+
+  const setupRecaptcha = () => {
+    if ((window as any).recaptchaVerifier) return (window as any).recaptchaVerifier;
+    
+    (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+      'size': 'invisible',
+      'callback': () => {},
+      'expired-callback': () => {
+        toast.error('reCAPTCHA expired. Please try again.');
+        (window as any).recaptchaVerifier?.render();
+      }
+    });
+    return (window as any).recaptchaVerifier;
+  };
 
   const handleSendOTP = async () => {
     if (!phone || !name || !email || !password) {
       toast.error('Please fill all fields first');
       return;
     }
+
+    // Basic Pakistan phone normalization for Firebase
+    let formattedPhone = phone.replace(/\D/g, '');
+    if (formattedPhone.startsWith('03') && formattedPhone.length === 11) {
+      formattedPhone = '+92' + formattedPhone.substring(1);
+    } else if (!formattedPhone.startsWith('+')) {
+      formattedPhone = '+' + formattedPhone;
+    }
+
+    if (formattedPhone.length < 10) {
+      toast.error('Please enter a valid phone number with country code');
+      return;
+    }
+
     setLoading(true);
     try {
-      await api.post('/auth/send-otp', { phone });
+      const verifier = setupRecaptcha();
+      const result = await signInWithPhoneNumber(auth, formattedPhone, verifier);
+      setConfirmationResult(result);
       setOtpStep(true);
-      toast.success('Verification code sent to WhatsApp');
+      toast.success('Verification code sent to your phone');
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to send OTP');
+      console.error('Firebase Phone Auth error:', error);
+      toast.error(error.message || 'Failed to send OTP. Check your Firebase console settings.');
     } finally {
       setLoading(false);
     }
@@ -50,7 +85,17 @@ const Auth: React.FC = () => {
         toast.success('Welcome back!');
         navigate('/');
       } else {
-        await register(name, email, password, phone, otp);
+        if (!confirmationResult) {
+          toast.error('OTP session expired. Please resend.');
+          setOtpStep(false);
+          return;
+        }
+
+        // Verify Firebase OTP
+        await confirmationResult.confirm(otp);
+        
+        // After firebase verification, register on our server
+        await register(name, email, password, phone, "FIREBASE_VERIFIED");
         toast.success('Account verified and created!');
         navigate('/');
       }
@@ -65,6 +110,7 @@ const Auth: React.FC = () => {
 
   return (
     <div className="max-w-md mx-auto py-12 px-4">
+      <div id="recaptcha-container"></div>
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
