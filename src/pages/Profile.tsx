@@ -17,6 +17,16 @@ const Profile: React.FC = () => {
   });
   const [isSaving, setIsSaving] = useState(false);
 
+  React.useEffect(() => {
+    if (profile) {
+      setFormData({
+        name: profile.name || '',
+        phone: profile.phone || '',
+        avatar: profile.avatar || ''
+      });
+    }
+  }, [profile]);
+
   if (!user || !profile) return null;
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -58,21 +68,27 @@ const Profile: React.FC = () => {
         className="bg-white dark:bg-gray-900 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-xl shadow-gray-50 dark:shadow-none overflow-hidden"
       >
         <div className="bg-orange-500 h-32 relative">
-          <div className="absolute -bottom-12 left-8 p-1 bg-white dark:bg-gray-900 rounded-[2rem] shadow-xl">
-            <div className="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-[1.8rem] flex items-center justify-center overflow-hidden">
-              {profile.avatar ? (
-                <img src={profile.avatar} alt={profile.name} className="w-full h-full object-cover" />
+          <div className="absolute -bottom-12 left-8 p-1 bg-white dark:bg-gray-800 rounded-[2rem] shadow-xl">
+            <div className="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-[1.8rem] flex items-center justify-center overflow-hidden group relative">
+              {profile.avatar || formData.avatar ? (
+                <img src={formData.avatar || profile.avatar} alt={profile.name} className="w-full h-full object-cover" />
               ) : (
                 <User className="w-12 h-12 text-gray-400" />
               )}
+              {isEditing && (
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Camera className="w-8 h-8 text-white" />
+                </div>
+              )}
             </div>
             {isEditing && (
-              <label className="absolute bottom-0 right-0 p-2 bg-orange-600 text-white rounded-full cursor-pointer hover:scale-110 transition-transform shadow-lg">
-                <Camera className="w-4 h-4" />
+              <label className="absolute bottom-0 right-0 p-3 bg-orange-600 text-white rounded-full cursor-pointer hover:scale-110 transition-transform shadow-lg border-2 border-white dark:border-gray-900">
+                <Camera className="w-5 h-5" />
                 <input 
-                  type="text" 
+                  type="file" 
+                  accept="image/*"
                   className="hidden" 
-                  placeholder="URL"
+                  onChange={handleImageUpload}
                 />
               </label>
             )}

@@ -4,7 +4,7 @@ import api from '../services/api';
 import toast from 'react-hot-toast';
 import { 
   LayoutDashboard, ShoppingBag, Package, Settings, Plus, 
-  Trash2, Edit3, X, Check, CreditCard, Loader2 
+  Trash2, Edit3, X, Check, CreditCard, Loader2, User, MapPin, Eye
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatPrice } from '../lib/utils';
@@ -369,10 +369,10 @@ const AdminDashboard: React.FC = () => {
                                   setViewingOrder(order);
                                   setShowOrderModal(true);
                                 }}
-                                className="p-2 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-xl transition-all"
+                                className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl transition-all"
                                 title="View Details"
                               >
-                                <LayoutDashboard className="w-5 h-5" />
+                                <Eye className="w-5 h-5" />
                               </button>
                               <select 
                                 value={order.status}
@@ -437,9 +437,9 @@ const AdminDashboard: React.FC = () => {
                                   setViewingOrder(order);
                                   setShowOrderModal(true);
                                 }}
-                                className="p-4 bg-indigo-500 text-white rounded-2.5xl hover:bg-indigo-600 transition-all shadow-lg shadow-indigo-500/20 active:scale-95 shrink-0"
+                                className="p-4 bg-orange-500 text-white rounded-2.5xl hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20 active:scale-95 shrink-0"
                               >
-                                <LayoutDashboard className="w-6 h-6" />
+                                <Eye className="w-6 h-6" />
                               </button>
                             </div>
                             <div className="space-y-3">
@@ -516,48 +516,45 @@ const AdminDashboard: React.FC = () => {
             )}
 
             {activeTab === 'categories' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {categories.map(category => (
-                  <div key={category.id} className="relative bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden group hover:shadow-xl hover:shadow-orange-500/5 transition-all duration-500">
-                    {/* Background Accent */}
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700" />
+                  <div key={category.id} className="relative bg-white dark:bg-gray-900 p-6 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden group hover:shadow-2xl hover:shadow-orange-500/10 transition-all duration-500">
+                    <div className="absolute -top-10 -right-10 w-32 h-32 bg-orange-500/5 rounded-full group-hover:scale-150 transition-transform duration-700" />
                     
-                    <div className="relative space-y-6">
-                      <div className="flex justify-between items-start">
-                        <div className="bg-orange-500 text-white p-4 rounded-3xl shadow-lg shadow-orange-500/20">
-                          {/* Dynamically render Lucide icon if possible, else default */}
-                          <Package className="w-8 h-8" />
-                        </div>
-                        <div className="flex gap-2">
-                          <button 
-                            onClick={() => {
-                              setEditingCategory(category);
-                              setShowEditCategoryModal(true);
-                            }}
-                            className="p-3 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-2xl hover:bg-indigo-500 hover:text-white transition-all shadow-sm"
-                          >
-                            <Edit3 className="w-5 h-5" />
-                          </button>
-                          <button 
-                            onClick={() => handleDeleteCategory(category.id)}
-                            className="p-3 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 rounded-2xl hover:bg-red-500 hover:text-white transition-all shadow-sm"
-                          >
-                            <Trash2 className="w-5 h-5" />
-                          </button>
-                        </div>
+                    <div className="relative flex items-center gap-5">
+                      <div className="bg-orange-500 text-white p-4 rounded-3xl shadow-lg shadow-orange-500/20 shrink-0">
+                        <Package className="w-6 h-6" />
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest truncate">Category</p>
+                        <h3 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight truncate">{category.name}</h3>
                       </div>
 
-                      <div className="space-y-1 pt-4">
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Category Label</p>
-                        <h3 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-widest truncate">{category.name}</h3>
+                      <div className="flex flex-col gap-2">
+                        <button 
+                          onClick={() => {
+                            setEditingCategory(category);
+                            setShowEditCategoryModal(true);
+                          }}
+                          className="p-2.5 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-500 hover:text-white transition-all"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteCategory(category.id)}
+                          className="p-2.5 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 rounded-xl hover:bg-red-500 hover:text-white transition-all"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
+                    </div>
 
-                      <div className="pt-4 border-t border-gray-50 dark:border-gray-800 flex justify-between items-center">
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Active Items</span>
-                        <span className="px-4 py-1.5 bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400 rounded-full text-xs font-black ring-1 ring-orange-100 dark:ring-orange-900">
-                          {products.filter(p => p.categoryId === category.id).length}
-                        </span>
-                      </div>
+                    <div className="mt-4 pt-4 border-t border-gray-50 dark:border-gray-800 flex justify-between items-center">
+                      <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Products</span>
+                      <span className="px-3 py-1 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white rounded-full text-[10px] font-black">
+                        {products.filter(p => p.categoryId === category.id).length}
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -569,19 +566,22 @@ const AdminDashboard: React.FC = () => {
 
       {/* Order Details Modal */}
       {showOrderModal && viewingOrder && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
           <motion.div 
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            className="bg-white dark:bg-gray-900 rounded-[3rem] p-8 max-w-3xl w-full shadow-3xl space-y-8 max-h-[90vh] overflow-y-auto border border-white/20 dark:border-gray-800"
+            className="bg-white dark:bg-gray-900 p-6 sm:p-10 max-w-4xl w-full rounded-[3rem] shadow-3xl space-y-8 max-h-[90vh] overflow-y-auto border border-white/10 dark:border-gray-800"
           >
-            <div className="flex justify-between items-center">
-              <div>
-                <h3 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Order Details</h3>
-                <p className="text-xs font-black text-orange-500 uppercase tracking-widest font-mono mt-1">Order ID: #{viewingOrder.id.toUpperCase()}</p>
+            <div className="flex justify-between items-start">
+              <div className="space-y-1">
+                <h3 className="text-2xl sm:text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Order Summary</h3>
+                <p className="text-[10px] font-black text-orange-500 uppercase tracking-[0.2em] font-mono">Invoice #{viewingOrder.id.toUpperCase()}</p>
               </div>
-              <button onClick={() => setShowOrderModal(false)} className="p-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-all active:rotate-90">
-                <X className="w-8 h-8 dark:text-white" />
+              <button 
+                onClick={() => setShowOrderModal(false)} 
+                className="p-3 bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-orange-500 rounded-full transition-all active:rotate-90 shadow-sm"
+              >
+                <X className="w-6 h-6" />
               </button>
             </div>
 
@@ -619,7 +619,7 @@ const AdminDashboard: React.FC = () => {
                 <div className="bg-gray-900 dark:bg-black text-white p-6 rounded-[2rem] space-y-4">
                   <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4">Cart Summary</p>
                   <div className="max-h-48 overflow-y-auto space-y-3 pr-2 scrollbar-hide">
-                    {viewingOrder.items.map((item, i) => (
+                    {viewingOrder.items && Array.isArray(viewingOrder.items) ? viewingOrder.items.map((item, i) => (
                       <div key={i} className="flex justify-between items-center text-sm">
                         <div className="flex items-center gap-3">
                           <span className="font-black text-orange-500">{item.quantity}x</span>
@@ -627,26 +627,28 @@ const AdminDashboard: React.FC = () => {
                         </div>
                         <span className="font-black tabular-nums">{formatPrice(item.price * item.quantity)}</span>
                       </div>
-                    ))}
+                    )) : (
+                      <p className="text-xs text-gray-500 font-bold">No items found in this order</p>
+                    )}
                   </div>
                   <div className="pt-4 border-t border-gray-800 space-y-2">
                     <div className="flex justify-between text-xs text-gray-400 font-bold">
                       <span>Subtotal</span>
-                      <span className="tabular-nums">{formatPrice(viewingOrder.total - (viewingOrder.deliveryFee || 0) + (viewingOrder.discount || 0))}</span>
+                      <span className="tabular-nums">{formatPrice((viewingOrder.total || 0) - (viewingOrder.deliveryFee || 0) + (viewingOrder.discount || 0))}</span>
                     </div>
-                    {viewingOrder.discount && (
+                    {viewingOrder.discount ? (
                       <div className="flex justify-between text-xs text-green-500 font-bold">
                         <span>Discount</span>
                         <span className="tabular-nums">-{formatPrice(viewingOrder.discount)}</span>
                       </div>
-                    )}
+                    ) : null}
                     <div className="flex justify-between text-xs text-blue-400 font-bold">
                       <span>Delivery Fee</span>
                       <span className="tabular-nums">{formatPrice(viewingOrder.deliveryFee || 0)}</span>
                     </div>
                     <div className="flex justify-between text-xl font-black pt-2">
-                      <span>Total</span>
-                      <span className="text-orange-500 tabular-nums">{formatPrice(viewingOrder.total)}</span>
+                      <span>Total Amount</span>
+                      <span className="text-orange-500 tabular-nums">{formatPrice(viewingOrder.total || 0)}</span>
                     </div>
                   </div>
                 </div>

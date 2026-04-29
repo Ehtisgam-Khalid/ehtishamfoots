@@ -11,7 +11,7 @@ import { Product } from '../types';
 
 const Cart: React.FC = () => {
   const { items, removeItem, updateQuantity, total, clearCart, addItem } = useCart();
-  const { user } = useAuth();
+  const { user, setProfile } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [locating, setLocating] = useState(false);
@@ -20,9 +20,57 @@ const Cart: React.FC = () => {
   const [addons, setAddons] = useState<Product[]>([]);
   const [distance, setDistance] = useState<number | null>(null);
   const [deliveryType, setDeliveryType] = useState<'standard' | 'express'>('standard');
+  const [isCouponClaimed, setIsCouponClaimed] = useState(false);
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
 
   // Restaurant Location (e.g., Karachi Central)
   const RESTAURANT_LOC = { lat: 24.9107, lon: 67.0924 };
+
+  useEffect(() => {
+    if (user?.lastCouponClaimedAt) {
+      const lastClaim = new Date(user.lastCouponClaimedAt);
+      const nextClaim = new Date(lastClaim.getTime() + 24 * 60 * 60 * 1000);
+      const now = new Date();
+      
+      if (now < nextClaim) {
+        setTimeLeft(nextClaim.getTime() - now.getTime());
+      }
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (timeLeft !== null && timeLeft > 0) {
+      const timer = setInterval(() => {
+        setTimeLeft(prev => (prev !== null && prev > 0) ? prev - 1000 : 0);
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [timeLeft]);
+
+  const handleClaimReward = async () => {
+    if (total < 600) {
+      toast.error('Minimum order Rs. 600 required for coupon');
+      return;
+    }
+    
+    try {
+      const res = await api.post('/auth/claim-reward');
+      setIsCouponClaimed(true);
+      toast.success(res.data.message);
+      // Refresh profile to update lastCouponClaimedAt
+      const meRes = await api.get('/auth/me');
+      setProfile(meRes.data);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to claim reward');
+    }
+  };
+
+  const formatTime = (ms: number) => {
+    const hours = Math.floor(ms / (1000 * 60 * 60));
+    const mins = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
+    const secs = Math.floor((ms % (1000 * 60)) / 1000);
+    return `${hours}h ${mins}m ${secs}s`;
+  };
 
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
     const R = 6371; // Radius of the earth in km
@@ -49,7 +97,7 @@ const Cart: React.FC = () => {
     }).catch(() => {});
   }, []);
 
-  const discount = total >= 600 ? 50 : 0;
+  const discount = isCouponClaimed ? 50 : 0;
   
   // Dynamic Delivery Fee Logic:
   // <= 2km: Rs. 250
@@ -147,7 +195,9 @@ const Cart: React.FC = () => {
         paymentStatus: paymentMethod === 'online' ? 'paid' : 'pending',
         address: address,
         discount: discount,
-        deliveryFee: deliveryFee
+        deliveryFee: deliveryFee,
+        userName: user.name,
+        userPhone: user.phone
       };
 
       const response = await api.post('/orders', orderData);
@@ -196,9 +246,9 @@ const Cart: React.FC = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                className="p-8 flex flex-col sm:flex-row gap-8 border-b border-gray-50 dark:border-gray-800 last:border-0 hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors"
+                className="p-5 sm:p-8 flex flex-row gap-5 sm:gap-8 border-b border-gray-50 dark:border-gray-800 last:border-0 hover:bg-orange-50/10 transition-colors"
               >
-                <div className="w-full sm:w-28 h-28 rounded-3xl overflow-hidden shadow-xl flex-shrink-0 relative group">
+                <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-2xl sm:rounded-3xl overflow-hidden shadow-xl flex-shrink-0 relative group">
                   <img 
                     src={item.image} 
                     alt={item.title} 
@@ -207,39 +257,45 @@ const Cart: React.FC = () => {
                     loading="lazy"
                   />
                 </div>
-                <div className="flex-1 flex flex-col justify-between py-1">
-                  <div>
-                    <h3 className="font-black text-xl text-gray-900 dark:text-white line-clamp-1">{item.title}</h3>
-                    <p className="text-orange-500 font-black text-lg mt-1">{formatPrice(item.price)}</p>
-                  </div>
-                  <div className="flex items-center gap-3 mt-4 sm:mt-0">
-                    <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl">
+                <div className="flex-1 flex flex-col justify-between py-0.5 sm:py-1 min-w-0">
+                  <div className="space-y-0.5 sm:space-y-1">
+                    <div className="flex justify-between items-start gap-2">
+                      <h3 className="font-black text-sm sm:text-2xl text-gray-900 dark:text-white line-clamp-1 uppercase tracking-tight">{item.title}</h3>
                       <button 
-                        onClick={() => updateQuantity(item.productId, item.quantity - 1)}
-                        className="p-2 hover:bg-white dark:hover:bg-gray-700 rounded-xl transition-all text-gray-600 dark:text-gray-400 active:scale-95"
+                        onClick={() => removeItem(item.productId)}
+                        className="sm:hidden p-1.5 text-red-500/30 hover:text-red-500 transition-colors"
                       >
-                        <Minus className="w-4 h-4" />
-                      </button>
-                      <span className="w-10 text-center font-black text-gray-900 dark:text-white tabular-nums">{item.quantity}</span>
-                      <button 
-                        onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-                        className="p-2 hover:bg-white dark:hover:bg-gray-700 rounded-xl transition-all text-gray-600 dark:text-gray-400 active:scale-95"
-                      >
-                        <Plus className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
+                    <p className="text-orange-500 font-black text-xs sm:text-xl tabular-nums">{formatPrice(item.price)}</p>
                   </div>
-                </div>
-                <div className="flex flex-col items-end justify-between py-1">
-                  <button 
-                    onClick={() => removeItem(item.productId)}
-                    className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-2xl transition-all"
-                  >
-                    <Trash2 className="w-6 h-6" />
-                  </button>
-                  <p className="font-black text-2xl text-gray-900 dark:text-white tabular-nums">
-                    {formatPrice(item.price * item.quantity)}
-                  </p>
+
+                  <div className="flex justify-between items-center mt-3 sm:mt-6">
+                    <div className="flex items-center gap-1.5 sm:gap-3 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl sm:rounded-2xl">
+                      <button 
+                        onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                        className="w-7 h-7 sm:w-10 sm:h-10 flex items-center justify-center hover:bg-white dark:hover:bg-gray-700 rounded-lg sm:rounded-xl transition-all text-gray-600 dark:text-gray-400 active:scale-95 disabled:opacity-30"
+                        disabled={item.quantity <= 1}
+                      >
+                        <Minus className="w-3 h-3 sm:w-4 h-4" />
+                      </button>
+                      <span className="w-6 sm:w-10 text-center font-black text-xs sm:text-lg text-gray-900 dark:text-white tabular-nums">{item.quantity}</span>
+                      <button 
+                        onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                        className="w-7 h-7 sm:w-10 sm:h-10 flex items-center justify-center hover:bg-white dark:hover:bg-gray-700 rounded-lg sm:rounded-xl transition-all text-gray-600 dark:text-gray-400 active:scale-95"
+                      >
+                        <Plus className="w-3 h-3 sm:w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <button 
+                      onClick={() => removeItem(item.productId)}
+                      className="hidden sm:flex items-center gap-2 px-5 py-2.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition-all font-black text-xs uppercase tracking-widest active:scale-95"
+                    >
+                      <Trash2 className="w-4 h-4" /> Remove
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             ))}
@@ -273,120 +329,147 @@ const Cart: React.FC = () => {
         )}
       </div>
 
-      <div className="space-y-8">
-        <div className="bg-white dark:bg-gray-900 rounded-[3.5rem] border border-gray-100 dark:border-gray-800 shadow-2xl shadow-gray-200/50 dark:shadow-none p-8 sm:p-12 space-y-10 sticky top-24">
-          <div className="space-y-2">
-            <h2 className="text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Checkout</h2>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1">Complete your orders</p>
+      <div className="space-y-6 sm:space-y-8">
+        <div className="bg-white dark:bg-gray-900 rounded-[2rem] sm:rounded-[3.5rem] border border-gray-100 dark:border-gray-800 shadow-2xl shadow-gray-200/50 dark:shadow-none p-5 sm:p-12 space-y-6 sm:space-y-10 sticky top-24">
+          <div className="space-y-0.5 sm:space-y-2">
+            <h2 className="text-xl sm:text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Checkout</h2>
+            <p className="text-[9px] sm:text-xs font-bold text-gray-400 uppercase tracking-widest pl-0.5">Complete your order</p>
           </div>
           
-          <div className="space-y-8">
-            <div className="space-y-4">
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 pl-1">Delivery Speed</p>
-              <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-5 sm:space-y-8">
+            <div className="space-y-2.5 sm:space-y-4">
+              <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 pl-0.5">Delivery Speed</p>
+              <div className="grid grid-cols-2 gap-2 sm:gap-4">
                 <button 
                   onClick={() => setDeliveryType('standard')}
-                  className={`p-5 rounded-3xl border-2 transition-all flex flex-col items-center gap-2 group ${
+                  className={`p-3 sm:p-5 rounded-xl sm:rounded-3xl border-2 transition-all flex flex-col items-center gap-1 sm:gap-2 group ${
                     deliveryType === 'standard' 
                     ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/20 ring-4 ring-orange-500/10' 
                     : 'border-transparent bg-gray-50 dark:bg-gray-800/50'
                   }`}
                 >
-                  <Truck className={`w-6 h-6 ${deliveryType === 'standard' ? 'text-orange-500' : 'text-gray-400'}`} />
+                  <Truck className={`w-4 h-4 sm:w-6 sm:h-6 ${deliveryType === 'standard' ? 'text-orange-500' : 'text-gray-400'}`} />
                   <div className="text-center">
-                    <span className="font-black text-sm text-gray-900 dark:text-white block">Standard</span>
-                    <span className="text-[10px] font-bold text-gray-400">30-45 mins</span>
+                    <span className="font-black text-[10px] sm:text-sm text-gray-900 dark:text-white block tracking-tight">Standard</span>
+                    <span className="text-[8px] sm:text-[10px] font-bold text-gray-400">30-45m</span>
                   </div>
                 </button>
                 <button 
                   onClick={() => setDeliveryType('express')}
-                  className={`p-5 rounded-3xl border-2 transition-all flex flex-col items-center gap-2 group ${
+                  className={`p-3 sm:p-5 rounded-xl sm:rounded-3xl border-2 transition-all flex flex-col items-center gap-1 sm:gap-2 group ${
                     deliveryType === 'express' 
                     ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/20 ring-4 ring-orange-500/10' 
                     : 'border-transparent bg-gray-50 dark:bg-gray-800/50'
                   }`}
                 >
                   <div className="relative">
-                    <Truck className={`w-6 h-6 ${deliveryType === 'express' ? 'text-orange-500' : 'text-gray-400'}`} />
-                    <span className="absolute -top-1 -right-1 text-xs">⚡</span>
+                    <Truck className={`w-4 h-4 sm:w-6 sm:h-6 ${deliveryType === 'express' ? 'text-orange-500' : 'text-gray-400'}`} />
+                    <span className="absolute -top-0.5 -right-0.5 text-[8px] sm:text-[10px]">⚡</span>
                   </div>
                   <div className="text-center">
-                    <span className="font-black text-sm text-gray-900 dark:text-white block">Express</span>
-                    <span className="text-[10px] font-bold text-gray-400">+Rs. 150 (15m)</span>
+                    <span className="font-black text-[10px] sm:text-sm text-gray-900 dark:text-white block tracking-tight">Express</span>
+                    <span className="text-[8px] sm:text-[10px] font-bold text-gray-400">+PKR 150</span>
                   </div>
                 </button>
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div className="flex justify-between items-center mb-1">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Delivery Address</label>
+            <div className="space-y-3 sm:space-y-4">
+              <div className="flex justify-between items-center mb-0.5">
+                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest pl-0.5">Delivery Address</label>
                 <button 
                   type="button"
                   onClick={handleUseMyLocation}
                   disabled={locating}
-                  className="text-[10px] font-black uppercase tracking-widest text-orange-500 hover:text-white hover:bg-orange-500 bg-orange-50 dark:bg-orange-950/30 px-5 py-2.5 rounded-2xl transition-all disabled:opacity-50 flex items-center gap-2 border border-orange-100 dark:border-orange-900 shadow-sm active:scale-95"
+                  className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-orange-500 bg-orange-50 dark:bg-orange-950/30 px-2 sm:px-5 py-1.5 rounded-lg transition-all flex items-center gap-1 border border-orange-100 dark:border-orange-900"
                 >
-                  {locating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MapPin className="w-3.5 h-3.5" />}
-                  {locating ? 'Searching...' : 'Locate Me 📍'}
+                  {locating ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <MapPin className="w-2.5 h-2.5" />}
+                  {locating ? 'Locating' : 'Locate Me'}
                 </button>
               </div>
               <textarea 
                 placeholder="Where should we bring your food?"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                className="w-full p-6 bg-gray-50 dark:bg-[#0a0a0a] border-2 border-transparent focus:border-orange-500 dark:text-white rounded-[2.5rem] outline-none transition-all font-bold text-sm min-h-[120px] resize-none shadow-inner"
+                className="w-full p-4 sm:p-6 bg-gray-50 dark:bg-[#0a0a0a] border-2 border-transparent focus:border-orange-500 dark:text-white rounded-[1.25rem] sm:rounded-[2.5rem] outline-none transition-all font-bold text-[11px] sm:text-sm min-h-[80px] sm:min-h-[120px] resize-none shadow-inner"
               />
             </div>
 
-            <div className="space-y-4">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Payment Method</label>
-              <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-3 sm:space-y-4">
+              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest pl-0.5">Daily Reward</label>
+              {timeLeft !== null && timeLeft > 0 ? (
+                <div className="bg-gray-50 dark:bg-gray-800/50 p-4 sm:p-6 rounded-xl sm:rounded-[2.5rem] border border-gray-100 dark:border-gray-800 text-center space-y-0.5">
+                  <p className="text-[8px] font-black uppercase tracking-widest text-orange-500">Reward In</p>
+                  <p className="text-base sm:text-2xl font-black text-gray-900 dark:text-white font-mono">{formatTime(timeLeft)}</p>
+                </div>
+              ) : (
+                <button 
+                  onClick={handleClaimReward}
+                  disabled={total < 600 || isCouponClaimed}
+                  className={`w-full group p-4 sm:p-6 rounded-xl sm:rounded-[2.5rem] border-2 border-dashed transition-all flex flex-col items-center gap-1 sm:gap-2 ${
+                    total >= 600 && !isCouponClaimed
+                    ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/20 hover:scale-[1.01]' 
+                    : 'border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 opacity-60'
+                  }`}
+                >
+                  <Ticket className={`w-5 h-5 sm:w-8 sm:h-8 ${total >= 600 && !isCouponClaimed ? 'text-orange-500 animate-bounce' : 'text-gray-400'}`} />
+                  <div className="text-center">
+                    <span className="font-black text-[10px] sm:text-sm text-gray-900 dark:text-white block uppercase tracking-tight">
+                      {isCouponClaimed ? 'Coupon Applied! ✅' : 'Claim PKR 50 Discount'}
+                    </span>
+                  </div>
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-2 sm:space-y-4">
+              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest pl-0.5">Payment Method</label>
+              <div className="grid grid-cols-2 gap-2 sm:gap-4">
                 <button 
                   onClick={() => setPaymentMethod('cod')}
-                  className={`flex flex-col items-center gap-3 p-6 rounded-[2.5rem] border-2 transition-all group ${
+                  className={`flex flex-col items-center gap-1.5 p-3 sm:p-6 rounded-xl sm:rounded-[2.5rem] border-2 transition-all ${
                     paymentMethod === 'cod' 
                     ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/30' 
                     : 'border-transparent bg-gray-50 dark:bg-gray-800/50'
                   }`}
                 >
-                  <div className={`p-4 rounded-2xl transition-all ${paymentMethod === 'cod' ? 'bg-orange-500 text-white shadow-lg' : 'bg-white dark:bg-gray-700 text-gray-400'}`}>
-                    <Truck className="w-6 h-6 " />
+                  <div className={`p-2 sm:p-4 rounded-lg sm:rounded-2xl transition-all ${paymentMethod === 'cod' ? 'bg-orange-500 text-white shadow-lg' : 'bg-white dark:bg-gray-700 text-gray-400'}`}>
+                    <Truck className="w-4 h-4 sm:w-6 sm:h-6" />
                   </div>
-                  <span className={`text-[10px] font-black uppercase tracking-widest ${paymentMethod === 'cod' ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400'}`}>Cash</span>
+                  <span className={`text-[8px] sm:text-[10px] font-black uppercase tracking-widest ${paymentMethod === 'cod' ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400'}`}>Cash</span>
                 </button>
                 <button 
                   onClick={() => setPaymentMethod('online')}
-                  className={`flex flex-col items-center gap-3 p-6 rounded-[2.5rem] border-2 transition-all group ${
+                  className={`flex flex-col items-center gap-1.5 p-3 sm:p-6 rounded-xl sm:rounded-[2.5rem] border-2 transition-all ${
                     paymentMethod === 'online' 
                     ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/30' 
                     : 'border-transparent bg-gray-50 dark:bg-gray-800/50'
                   }`}
                 >
-                  <div className={`p-4 rounded-2xl transition-all ${paymentMethod === 'online' ? 'bg-orange-500 text-white shadow-lg' : 'bg-white dark:bg-gray-700 text-gray-400'}`}>
-                    <CreditCard className="w-6 h-6" />
+                  <div className={`p-2 sm:p-4 rounded-lg sm:rounded-2xl transition-all ${paymentMethod === 'online' ? 'bg-orange-500 text-white shadow-lg' : 'bg-white dark:bg-gray-700 text-gray-400'}`}>
+                    <CreditCard className="w-4 h-4 sm:w-6 sm:h-6" />
                   </div>
-                  <span className={`text-[10px] font-black uppercase tracking-widest ${paymentMethod === 'online' ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400'}`}>Card</span>
+                  <span className={`text-[8px] sm:text-[10px] font-black uppercase tracking-widest ${paymentMethod === 'online' ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400'}`}>Card</span>
                 </button>
               </div>
             </div>
           </div>
 
-          <div className="p-8 bg-gray-900 dark:bg-black rounded-[3rem] space-y-6 shadow-2xl">
-            <div className="space-y-4">
-              <div className="flex justify-between text-gray-500 font-bold text-xs uppercase tracking-widest">
+          <div className="p-6 sm:p-8 bg-gray-900 dark:bg-black rounded-[2rem] sm:rounded-[3rem] space-y-4 sm:space-y-6 shadow-2xl">
+            <div className="space-y-3 sm:space-y-4">
+              <div className="flex justify-between text-gray-500 font-bold text-[10px] sm:text-xs uppercase tracking-widest">
                 <span>Subtotal</span>
                 <span className="tabular-nums text-white">{formatPrice(total)}</span>
               </div>
               
               {discount > 0 && (
-                <div className="flex justify-between items-center text-green-500 font-black text-xs uppercase tracking-widest py-3 border-y border-white/5">
-                  <div className="flex items-center gap-2"><Ticket className="w-4 h-4 shadow-sm" /> Discount Applied</div>
+                <div className="flex justify-between items-center text-green-500 font-black text-[10px] sm:text-xs uppercase tracking-widest py-2 border-y border-white/5">
+                  <div className="flex items-center gap-1.5"><Ticket className="w-3.5 h-3.5 shadow-sm" /> Reward Applied</div>
                   <span className="tabular-nums">-{formatPrice(discount)}</span>
                 </div>
               )}
 
-              <div className="flex justify-between text-gray-500 font-bold text-xs uppercase tracking-widest">
+              <div className="flex justify-between text-gray-500 font-bold text-[10px] sm:text-xs uppercase tracking-widest">
                 <span>Delivery</span>
                 <span className={deliveryFee > 0 ? "text-white tabular-nums" : "text-green-500 font-black"}>
                   {deliveryFee > 0 ? formatPrice(deliveryFee) : 'FREE'}
@@ -394,23 +477,23 @@ const Cart: React.FC = () => {
               </div>
             </div>
 
-            <div className="pt-4 flex justify-between items-end border-t border-white/10">
-              <span className="text-xs font-black text-gray-500 uppercase tracking-widest mb-1">Total Amount</span>
-              <span className="text-4xl font-black text-orange-500 tabular-nums tracking-tighter">{formatPrice(finalTotal)}</span>
+            <div className="pt-3 sm:pt-4 flex justify-between items-end border-t border-white/10">
+              <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-0.5">Total</span>
+              <span className="text-2xl sm:text-4xl font-black text-orange-500 tabular-nums tracking-tighter">{formatPrice(finalTotal)}</span>
             </div>
           </div>
 
           <button 
             onClick={handleCheckout}
             disabled={loading}
-            className="w-full bg-orange-500 text-white p-7 rounded-[2.5rem] font-black text-xl flex items-center justify-center gap-4 hover:bg-orange-600 transition-all shadow-2xl shadow-orange-500/20 active:scale-95 disabled:opacity-50 group overflow-hidden relative"
+            className="w-full bg-orange-500 text-white p-5 sm:p-7 rounded-[1.5rem] sm:rounded-[2.5rem] font-black text-lg sm:text-xl flex items-center justify-center gap-3 sm:gap-4 hover:bg-orange-600 transition-all shadow-2xl shadow-orange-500/20 active:scale-95 disabled:opacity-50 group overflow-hidden relative"
           >
             {loading ? (
-              <Loader2 className="w-8 h-8 animate-spin" />
+              <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 animate-spin" />
             ) : (
               <>
-                <div className="absolute top-0 left-0 w-2 h-full bg-white/20 -skew-x-12 -translate-x-4 group-hover:translate-x-80 transition-transform duration-700" />
-                Place Order <ArrowRight className="w-7 h-7 group-hover:translate-x-1 transition-transform" />
+                <div className="absolute top-0 left-0 w-1 sm:w-2 h-full bg-white/20 -skew-x-12 -translate-x-4 group-hover:translate-x-80 transition-transform duration-700" />
+                Place Order <ArrowRight className="w-5 h-5 sm:w-7 sm:h-7 group-hover:translate-x-1 transition-transform" />
               </>
             )}
           </button>

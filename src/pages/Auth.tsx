@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Mail, Lock, User, LogIn, UserPlus, Eye, EyeOff, Phone, Smartphone, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../services/api';
 
 const Auth: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -11,13 +12,37 @@ const Auth: React.FC = () => {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
+  const [otpStep, setOtpStep] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login, register } = useAuth();
   const navigate = useNavigate();
 
+  const handleSendOTP = async () => {
+    if (!phone || !name || !email || !password) {
+      toast.error('Please fill all fields first');
+      return;
+    }
+    setLoading(true);
+    try {
+      await api.post('/auth/send-otp', { phone });
+      setOtpStep(true);
+      toast.success('Verification code sent to WhatsApp');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to send OTP');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isLogin && !otpStep) {
+      handleSendOTP();
+      return;
+    }
+    
     setLoading(true);
     try {
       if (isLogin) {
@@ -25,8 +50,8 @@ const Auth: React.FC = () => {
         toast.success('Welcome back!');
         navigate('/');
       } else {
-        await register(name, email, password, phone);
-        toast.success('Welcome to ShamFood!');
+        await register(name, email, password, phone, otp);
+        toast.success('Account verified and created!');
         navigate('/');
       }
     } catch (error: any) {
@@ -39,20 +64,20 @@ const Auth: React.FC = () => {
   };
 
   return (
-    <div className="max-w-md mx-auto py-12">
+    <div className="max-w-md mx-auto py-12 px-4">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-[2rem] shadow-xl shadow-gray-100 p-8 md:p-10 border border-gray-100"
+        className="bg-white rounded-[2.5rem] shadow-2xl shadow-gray-200/50 p-8 sm:p-10 border border-gray-100"
       >
         <div className="text-center mb-10">
-          <h2 className="text-3xl font-extrabold text-gray-900 mb-2">
-            {isLogin ? 'Welcome Back' : 'Join ShamFood'}
+          <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tighter mb-2">
+            {isLogin ? 'Welcome Back' : (otpStep ? 'Verify Account' : 'Join ShamFood')}
           </h2>
-          <div className="text-gray-500 font-medium space-y-1">
+          <div className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em] space-y-1">
             {isLogin 
-              ? <p>Delicious meals are waiting for you</p>
-              : <p>Start your journey with ShamFood</p>
+              ? <p>Delicious meals are waiting</p>
+              : (otpStep ? <p>Enter code sent to {phone}</p> : <p>Start your food journey</p>)
             }
           </div>
         </div>
@@ -62,117 +87,143 @@ const Auth: React.FC = () => {
             {!isLogin ? (
               <motion.div 
                 key="register-fields"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="space-y-6"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-5"
               >
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Full Name</label>
-                  <div className="relative">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                    <input 
-                      type="text"
-                      required
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Ehtisham Arain"
-                      className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none transition-all font-medium"
-                    />
-                  </div>
-                </div>
+                {!otpStep ? (
+                  <>
+                    <div>
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Full Name</label>
+                      <div className="relative group">
+                        <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 w-5 h-5 transition-colors" />
+                        <input 
+                          type="text"
+                          required
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          placeholder="Your full name"
+                          className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-orange-500/20 focus:ring-4 focus:ring-orange-500/5 outline-none transition-all font-bold text-sm"
+                        />
+                      </div>
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Email Address</label>
-                  <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                    <input 
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="example@gmail.com"
-                      className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none transition-all font-medium"
-                    />
-                  </div>
-                </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Email Address</label>
+                      <div className="relative group">
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 w-5 h-5 transition-colors" />
+                        <input 
+                          type="email"
+                          required
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="email@example.com"
+                          className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-orange-500/20 focus:ring-4 focus:ring-orange-500/5 outline-none transition-all font-bold text-sm"
+                        />
+                      </div>
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Mobile Number</label>
-                  <div className="relative">
-                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                    <input 
-                      type="tel"
-                      required
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="+92 300 0000000"
-                      className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none transition-all font-medium"
-                    />
-                  </div>
-                </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">WhatsApp Number</label>
+                      <div className="relative group">
+                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 w-5 h-5 transition-colors" />
+                        <input 
+                          type="tel"
+                          required
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          placeholder="Ex: 03001234567"
+                          className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-orange-500/20 focus:ring-4 focus:ring-orange-500/5 outline-none transition-all font-bold text-sm"
+                        />
+                      </div>
+                      <p className="text-[9px] text-gray-400 font-bold mt-2 ml-1 uppercase tracking-widest">Verification code will be sent to WhatsApp</p>
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Password</label>
-                  <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                    <input 
-                      type={showPassword ? 'text' : 'password'}
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full pl-12 pr-12 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none transition-all font-medium"
-                    />
-                    <button 
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                    </button>
+                    <div>
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Password</label>
+                      <div className="relative group">
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 w-5 h-5 transition-colors" />
+                        <input 
+                          type={showPassword ? 'text' : 'password'}
+                          required
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="w-full pl-12 pr-12 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-orange-500/20 focus:ring-4 focus:ring-orange-500/5 outline-none transition-all font-bold text-sm"
+                        />
+                        <button 
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-orange-500 transition-colors"
+                        >
+                          {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Enter 6-Digit Code</label>
+                    <div className="relative group text-center space-y-4">
+                      <input 
+                        type="text"
+                        required
+                        maxLength={6}
+                        value={otp}
+                        onChange={(e) => setOtp(e.target.value)}
+                        placeholder="0 0 0 0 0 0"
+                        className="w-full text-center text-3xl tracking-[0.5em] py-6 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-orange-500 outline-none transition-all font-black text-orange-500"
+                      />
+                      <button 
+                        type="button" 
+                        onClick={() => setOtpStep(false)}
+                        className="text-[10px] font-black text-orange-500 uppercase tracking-widest hover:underline"
+                      >
+                        Change Number
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
               </motion.div>
             ) : (
               <motion.div 
                 key="login-fields"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
                 className="space-y-6"
               >
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Email Address</label>
-                  <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Email or Phone</label>
+                  <div className="relative group">
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 w-5 h-5 transition-colors" />
                     <input 
-                      type="email"
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="example@gmail.com"
-                      className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none transition-all font-medium"
+                      placeholder="Email or WhatsApp Number"
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-orange-500/20 focus:ring-4 focus:ring-orange-500/5 outline-none transition-all font-bold text-sm"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Password</label>
-                  <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Password</label>
+                  <div className="relative group">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 w-5 h-5 transition-colors" />
                     <input 
                       type={showPassword ? 'text' : 'password'}
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full pl-12 pr-12 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none transition-all font-medium"
+                      className="w-full pl-12 pr-12 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-orange-500/20 focus:ring-4 focus:ring-orange-500/5 outline-none transition-all font-bold text-sm"
                     />
                     <button 
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-orange-500 transition-colors"
                     >
                       {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
@@ -185,28 +236,34 @@ const Auth: React.FC = () => {
           <button 
             type="submit"
             disabled={loading}
-            className="w-full bg-orange-500 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-orange-600 transition-all shadow-lg shadow-orange-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-orange-500 text-white p-5 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/20 hover:shadow-orange-500/30 disabled:opacity-50 disabled:cursor-not-allowed group overflow-hidden relative"
           >
             {loading ? (
-              <span className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <span className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
               <>
-                {isLogin ? <LogIn className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
-                {isLogin ? 'Sign In' : 'Create Account'}
+                <div className="absolute top-0 left-0 w-2 h-full bg-white/20 -skew-x-12 -translate-x-4 group-hover:translate-x-80 transition-transform duration-700" />
+                {isLogin ? <LogIn className="w-5 h-5" /> : (otpStep ? <CheckCircle2 className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />)}
+                {isLogin ? 'Sign In Now' : (otpStep ? 'Verify & Register' : 'Continue to Verify')}
               </>
             )}
           </button>
         </form>
 
-        <p className="mt-10 text-center text-gray-500 font-medium">
-          {isLogin ? "Don't have an account?" : "Already have an account?"}{' '}
+        <div className="mt-10 text-center">
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">
+            {isLogin ? "Don't have an account?" : "Already have an account?"}
+          </p>
           <button 
-            onClick={() => setIsLogin(!isLogin)}
-            className="text-orange-500 font-bold hover:underline"
+            onClick={() => {
+              setIsLogin(!isLogin);
+              setOtpStep(false);
+            }}
+            className="px-8 py-3 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-orange-500 hover:text-white transition-all shadow-sm"
           >
-            {isLogin ? 'Sign Up' : 'Sign In'}
+            {isLogin ? 'Create Account' : 'Sign In Instead'}
           </button>
-        </p>
+        </div>
       </motion.div>
     </div>
   );

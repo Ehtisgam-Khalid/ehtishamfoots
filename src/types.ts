@@ -11,7 +11,9 @@ export interface UserProfile {
   phone?: string;
   role: UserRole;
   verified: boolean;
-  createdAt: Date;
+  createdAt: string;
+  avatar?: string;
+  lastCouponClaimedAt?: string | null;
 }
 
 export interface Product {

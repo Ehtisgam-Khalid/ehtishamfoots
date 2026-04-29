@@ -8,6 +8,7 @@ import bcrypt from "bcryptjs";
 import { nanoid } from "nanoid";
 import { createServer } from "http";
 import { Server } from "socket.io";
+import twilio from 'twilio';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,7 +36,8 @@ async function startServer() {
   });
   const PORT = 3000;
 
-  app.use(express.json());
+  app.use(express.json({ limit: '5mb' }));
+  app.use(express.urlencoded({ limit: '5mb', extended: true }));
 
   // Normalize prices on startup
   try {
@@ -90,15 +92,58 @@ async function startServer() {
     io.emit(event, data);
   };
 
+  const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN 
+    ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
+    : null;
+
+  const otps = new Map<string, { otp: string, expires: number }>();
+
   // --- Auth Routes ---
+  app.post("/api/auth/send-otp", async (req, res) => {
+    try {
+      const { phone } = req.body;
+      if (!phone) return res.status(400).json({ message: "Phone number required" });
+
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      otps.set(phone, { otp, expires: Date.now() + 10 * 60 * 1000 }); // 10 mins
+
+      if (twilioClient) {
+        await twilioClient.messages.create({
+          from: process.env.TWILIO_WHATSAPP_FROM || 'whatsapp:+14155238886', // Twilio Sandbox
+          to: `whatsapp:${phone}`,
+          body: `*ShamFood Authentication*\n\nYour verification code is: *${otp}*\n\nThis code will expire in 10 minutes. Do not share it with anyone.`
+        });
+        res.json({ message: "OTP sent successfully on WhatsApp!" });
+      } else {
+        console.log(`[AUTH-DEBUG] OTP for ${phone}: ${otp}`);
+        res.json({ 
+          message: "OTP sent (Dev Mode)", 
+          debug_otp: otp // Only for easier testing in AIS environment if twilio not set
+        });
+      }
+    } catch (err: any) {
+      console.error("Twilio Error:", err);
+      res.status(500).json({ message: "Failed to send WhatsApp OTP. Use a valid WhatsApp number." });
+    }
+  });
+
   app.post("/api/auth/register", async (req, res) => {
     try {
-      const { name, email, password, phone } = req.body;
+      const { name, email, password, phone, otp } = req.body;
       
       const db = await getDb();
       if (db.users.find((u: any) => u.email === email)) {
         return res.status(400).json({ message: "User already exists" });
       }
+
+      // Verify OTP
+      const stored = otps.get(phone);
+      if (!stored || stored.otp !== otp || Date.now() > stored.expires) {
+        return res.status(400).json({ message: "Invalid or expired OTP" });
+      }
+
+      // Clear OTP after use
+      otps.delete(phone);
 
       const hashedPassword = await bcrypt.hash(password, 10);
       const user = {
@@ -109,6 +154,7 @@ async function startServer() {
         password: hashedPassword,
         role: "user",
         verified: true,
+        lastCouponClaimedAt: null,
         createdAt: new Date().toISOString()
       };
 
@@ -129,7 +175,7 @@ async function startServer() {
       const { email, password } = req.body;
       const db = await getDb();
       
-      const user = db.users.find((u: any) => u.email === email);
+      const user = db.users.find((u: any) => u.email === email || (u.phone && u.phone === email));
       if (!user || !(await bcrypt.compare(password, user.password))) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
@@ -140,6 +186,37 @@ async function startServer() {
       res.json({ user: userWithoutPassword, token });
     } catch (err) {
       res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  app.post("/api/auth/claim-reward", async (req, res) => {
+    try {
+      const token = req.headers.authorization?.split(" ")[1];
+      if (!token) return res.status(401).json({ message: "Unauthorized" });
+
+      const decoded: any = jwt.verify(token, JWT_SECRET);
+      const db = await getDb();
+      const userIndex = db.users.findIndex((u: any) => u.uid === decoded.uid);
+      
+      if (userIndex === -1) return res.status(404).json({ message: "User not found" });
+
+      const lastClaimedAt = db.users[userIndex].lastCouponClaimedAt;
+      const now = new Date();
+      
+      if (lastClaimedAt) {
+        const lastDate = new Date(lastClaimedAt);
+        const diffHours = (now.getTime() - lastDate.getTime()) / (1000 * 60 * 60);
+        if (diffHours < 24) {
+          return res.status(400).json({ message: "Coupon available once every 24 hours" });
+        }
+      }
+
+      db.users[userIndex].lastCouponClaimedAt = now.toISOString();
+      await saveDb(db);
+      
+      res.json({ message: "Coupon applied! -PKR 50", lastCouponClaimedAt: now.toISOString() });
+    } catch (err) {
+      res.status(401).json({ message: "Invalid token" });
     }
   });
 
@@ -421,9 +498,10 @@ async function startServer() {
       
       let finalTotal = subtotal;
 
-      // Automated Coupon Logic: If order >= 600, apply 50 discount
-      if (subtotal >= 600) {
-        finalTotal -= 50;
+      // Use explicit discount from client (manual button claim)
+      const discount = Number(req.body.discount || 0);
+      if (discount > 0 && subtotal >= 600) {
+        finalTotal -= discount;
       }
 
       // Add delivery fee if provided
@@ -524,6 +602,40 @@ async function startServer() {
       res.json(db.orders[index]);
     } catch (err) {
       res.status(500).json({ message: "Update failed" });
+    }
+  });
+
+  app.post("/api/auth/claim-reward", async (req, res) => {
+    try {
+      const token = req.headers.authorization?.split(" ")[1];
+      if (!token) return res.status(401).json({ message: "Unauthorized" });
+      const decoded: any = jwt.verify(token, JWT_SECRET);
+
+      const db = await getDb();
+      const userIndex = db.users.findIndex((u: any) => u.uid === decoded.uid);
+      if (userIndex === -1) return res.status(404).json({ message: "User not found" });
+
+      const user = db.users[userIndex];
+      const now = new Date();
+      
+      if (user.lastCouponClaimedAt) {
+        const lastClaim = new Date(user.lastCouponClaimedAt);
+        const diffHours = (now.getTime() - lastClaim.getTime()) / (1000 * 60 * 60);
+        if (diffHours < 24) {
+          const remainingMinutes = Math.ceil((24 - diffHours) * 60);
+          return res.status(400).json({ 
+            message: "Reward already claimed today. Try again later.",
+            remainingMinutes
+          });
+        }
+      }
+
+      db.users[userIndex].lastCouponClaimedAt = now.toISOString();
+      await saveDb(db);
+
+      res.json({ message: "Reward claimed! Rs. 50 will be deducted from your next order above Rs. 600.", nextClaimAt: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString() });
+    } catch (err) {
+      res.status(500).json({ message: "Claim failed" });
     }
   });
 
