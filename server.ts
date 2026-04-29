@@ -547,10 +547,8 @@ async function startServer() {
       if (user?.role === 'admin') {
         db.orders[orderIndex].hiddenForAdmin = true;
       } else if (db.orders[orderIndex].userId === decoded.uid) {
-        // For users, we can just delete it from their view, 
-        // or physically remove it if they want. 
-        // The user said "user apna order delete kr saky", so we'll remove it.
-        db.orders.splice(orderIndex, 1);
+        // Soft delete for users: won't be visible to them but stays for admin
+        db.orders[orderIndex].hiddenForUser = true;
       } else {
         return res.status(403).json({ message: "Access denied" });
       }
