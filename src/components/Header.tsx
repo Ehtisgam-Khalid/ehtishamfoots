@@ -73,32 +73,32 @@ export const Header: React.FC = () => {
           )}
         </nav>
 
-        <div className="flex items-center gap-0.5 sm:gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           <button 
             onClick={toggleTheme}
-            className="p-2 sm:p-2.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-2xl transition-all active:scale-90"
+            className="p-1.5 sm:p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-2xl transition-all"
             aria-label="Toggle Theme"
           >
-            {theme === 'light' ? <Moon className="w-5 h-5 sm:w-6 sm:h-6" /> : <Sun className="w-5 h-5 sm:w-6 sm:h-6" />}
+            {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
           </button>
 
-          <Link to="/cart" className="relative p-2 sm:p-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-2xl transition-all active:scale-90">
+          <Link to="/cart" className="relative p-1.5 sm:p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-2xl transition-all">
             <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700 dark:text-gray-300" />
             {items.length > 0 && (
-              <span className="absolute top-1 sm:top-1.5 right-1 sm:right-1.5 bg-orange-600 text-white text-[9px] sm:text-[10px] font-black w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center rounded-full border-2 border-white dark:border-gray-900">
+              <span className="absolute top-0.5 right-0.5 bg-orange-600 text-white text-[8px] sm:text-[10px] font-black w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center rounded-full border-2 border-white dark:border-gray-900">
                 {items.reduce((acc, i) => acc + i.quantity, 0)}
               </span>
             )}
           </Link>
 
           {user ? (
-            <div className="flex items-center gap-0.5 sm:gap-2">
-              <Link to="/profile" className="flex items-center gap-2 p-1.5 sm:p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-2xl transition-all">
-                <div className="w-8 h-8 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center overflow-hidden border border-gray-100 dark:border-gray-700">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <Link to="/profile" className="flex items-center gap-2 p-1 sm:p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-2xl transition-all">
+                <div className="w-7 h-7 sm:w-8 h-8 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center overflow-hidden border border-gray-100 dark:border-gray-700">
                   {profile?.avatar ? (
                     <img src={profile.avatar} alt="" className="w-full h-full object-cover" />
                   ) : (
-                    <User className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-gray-400" />
+                    <User className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-gray-600 dark:text-gray-400" />
                   )}
                 </div>
                 <span className="hidden sm:block font-bold text-sm text-gray-700 dark:text-gray-300">{profile?.name?.split(' ')[0] || 'Profile'}</span>
@@ -107,17 +107,17 @@ export const Header: React.FC = () => {
           ) : (
             <Link 
               to="/auth" 
-              className="ml-2 px-3 sm:px-6 py-2 bg-orange-500 text-white font-black rounded-2xl hover:bg-orange-600 transition-all shadow-lg shadow-orange-100 dark:shadow-none active:scale-95 text-[10px] sm:text-xs uppercase tracking-widest whitespace-nowrap"
+              className="ml-1 px-3 sm:px-6 py-2 bg-orange-500 text-white font-black rounded-2xl hover:bg-orange-600 transition-all shadow-lg shadow-orange-100 dark:shadow-none active:scale-95 text-[9px] sm:text-xs uppercase tracking-widest whitespace-nowrap"
             >
               Sign In
             </Link>
           )}
           
           <button 
-            className="md:hidden p-2 sm:p-2.5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-2xl transition-all"
+            className="md:hidden p-1.5 sm:p-2.5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-2xl transition-all"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
-            <MenuIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+            <MenuIcon className="w-5 h-5" />
           </button>
         </div>
       </div>

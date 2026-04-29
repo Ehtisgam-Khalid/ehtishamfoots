@@ -18,6 +18,22 @@ const Cart: React.FC = () => {
   const [paymentMethod, setPaymentMethod] = useState<'cod' | 'online'>('cod');
   const [address, setAddress] = useState('');
   const [addons, setAddons] = useState<Product[]>([]);
+  const [distance, setDistance] = useState<number | null>(null);
+
+  // Restaurant Location (e.g., Karachi Central)
+  const RESTAURANT_LOC = { lat: 24.9107, lon: 67.0924 };
+
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; // Radius of the earth in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c; // Distance in km
+  };
 
   useEffect(() => {
     // Fetch some products as add-ons (e.g., drinks category)
@@ -33,7 +49,12 @@ const Cart: React.FC = () => {
   }, []);
 
   const discount = total >= 600 ? 50 : 0;
-  const deliveryFee = 0; // Keeping it free as per previous layout
+  
+  // Dynamic Delivery Fee Logic:
+  // <= 2km: Rs. 250
+  // > 2km: Rs. 400
+  const deliveryFee = distance === null ? 0 : (distance <= 2 ? 250 : 400);
+  
   const finalTotal = Math.max(0, total - discount + deliveryFee);
 
   const handleUseMyLocation = () => {
@@ -47,6 +68,11 @@ const Cart: React.FC = () => {
       async (position) => {
         try {
           const { latitude, longitude } = position.coords;
+          
+          // Calculate distance to restaurant
+          const dist = calculateDistance(latitude, longitude, RESTAURANT_LOC.lat, RESTAURANT_LOC.lon);
+          setDistance(dist);
+
           const response = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`
           );
@@ -62,7 +88,7 @@ const Cart: React.FC = () => {
             
             const formatted = parts.join(', ');
             setAddress(formatted || data.display_name);
-            toast.success('Location detected! 📍');
+            toast.success(`Location detected! (${dist.toFixed(1)}km) 📍`);
           } else {
             setAddress(`${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
             toast.success('Coordinates captured');
@@ -81,6 +107,15 @@ const Cart: React.FC = () => {
       },
       { enableHighAccuracy: true }
     );
+  };
+
+  const playThanksVoice = () => {
+    if ('speechSynthesis' in window) {
+      const utterance = new SpeechSynthesisUtterance("Thanks for your order! Your food is being prepared.");
+      utterance.rate = 0.9;
+      utterance.pitch = 1.1;
+      window.speechSynthesis.speak(utterance);
+    }
   };
 
   const handleCheckout = async () => {
@@ -108,11 +143,13 @@ const Cart: React.FC = () => {
         paymentMethod,
         paymentStatus: paymentMethod === 'online' ? 'paid' : 'pending',
         address: address,
-        discount: discount
+        discount: discount,
+        deliveryFee: deliveryFee
       };
 
       const response = await api.post('/orders', orderData);
       toast.success('Food is on its way!');
+      playThanksVoice();
       clearCart();
       navigate(`/orders/${response.data.id}`);
     } catch (error: any) {
@@ -310,7 +347,9 @@ const Cart: React.FC = () => {
             )}
             <div className="flex justify-between text-gray-500 dark:text-gray-400 font-bold text-sm uppercase tracking-widest border-t border-gray-100 dark:border-gray-700 pt-4">
               <span>Delivery</span>
-              <span className="text-green-500">FREE</span>
+              <span className={deliveryFee > 0 ? "text-gray-900 dark:text-white tabular-nums" : "text-green-500"}>
+                {deliveryFee > 0 ? formatPrice(deliveryFee) : 'FREE'}
+              </span>
             </div>
             <div className="flex justify-between text-3xl font-black text-gray-900 dark:text-white pt-4">
               <span>Total</span>

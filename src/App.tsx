@@ -29,7 +29,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; requiresAdmin?: bool
 
 const AppContent: React.FC = () => {
   return (
-    <div className="min-h-screen bg-[#FAFAFA] dark:bg-gray-950 font-sans antialiased text-gray-900 dark:text-gray-100 transition-colors duration-300">
+    <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#050505] font-sans antialiased text-gray-900 dark:text-gray-100 transition-colors duration-300">
       <Header />
       <main className="max-w-7xl mx-auto px-4 py-8">
         <Routes>

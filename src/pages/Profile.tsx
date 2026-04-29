@@ -19,6 +19,22 @@ const Profile: React.FC = () => {
 
   if (!user || !profile) return null;
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error('Image too large (Max 2MB)');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData({ ...formData, avatar: reader.result as string });
+        toast.success('Image selected! 📸');
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
@@ -166,14 +182,26 @@ const Profile: React.FC = () => {
                 </div>
 
                 <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Avatar URL</p>
-                  <input 
-                    type="url"
-                    value={formData.avatar}
-                    onChange={(e) => setFormData({...formData, avatar: e.target.value})}
-                    placeholder="https://example.com/image.jpg"
-                    className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 focus:ring-2 focus:ring-orange-500 font-bold font-mono text-sm"
-                  />
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Profile Image</p>
+                  <label className="flex flex-col items-center justify-center w-full h-32 px-6 py-4 bg-gray-50 dark:bg-gray-800 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-orange-500 transition-all cursor-pointer">
+                    {formData.avatar ? (
+                      <div className="flex items-center gap-4 w-full">
+                        <img src={formData.avatar} alt="Preview" className="w-20 h-20 rounded-xl object-cover shrink-0" />
+                        <span className="text-xs font-bold text-gray-500">Change Image</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2">
+                        <Camera className="w-8 h-8 text-gray-400" />
+                        <span className="text-xs font-bold text-gray-500">Upload from Gallery</span>
+                      </div>
+                    )}
+                    <input 
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                  </label>
                 </div>
               </div>
 
