@@ -161,6 +161,30 @@ async function startServer() {
     }
   });
 
+  app.patch("/api/auth/profile", async (req, res) => {
+    try {
+      const token = req.headers.authorization?.split(" ")[1];
+      if (!token) return res.status(401).json({ message: "Unauthorized" });
+
+      const decoded: any = jwt.verify(token, JWT_SECRET);
+      const db = await getDb();
+      const userIndex = db.users.findIndex((u: any) => u.uid === decoded.uid);
+      
+      if (userIndex === -1) return res.status(404).json({ message: "User not found" });
+
+      const { name, phone, avatar } = req.body;
+      if (name) db.users[userIndex].name = name;
+      if (phone) db.users[userIndex].phone = phone;
+      if (avatar) db.users[userIndex].avatar = avatar;
+
+      await saveDb(db);
+      const { password: _, ...userWithoutPassword } = db.users[userIndex];
+      res.json(userWithoutPassword);
+    } catch (err) {
+      res.status(401).json({ message: "Invalid token" });
+    }
+  });
+
   // --- Product Routes ---
   app.get("/api/products", async (req, res) => {
     const db = await getDb();
@@ -215,29 +239,18 @@ async function startServer() {
       }
 
       const targetId = String(req.params.id).trim();
-      console.log(`[ADMIN DELETE PRODUCT] Start - Request for ID: "${targetId}"`);
-      console.log(`[ADMIN DELETE PRODUCT] Current User Role: ${user?.role}`);
       
-      const index = db.products.findIndex((p: any) => String(p.id).trim() === targetId);
-      console.log(`[ADMIN DELETE PRODUCT] Initial search index: ${index}`);
+      const initialCount = db.products.length;
+      db.products = db.products.filter((p: any) => String(p.id).trim() !== targetId);
       
-      if (index === -1) {
-        console.log(`[ADMIN DELETE PRODUCT] Not found with exact match. Trying case-insensitive...`);
-        const indexCI = db.products.findIndex((p: any) => String(p.id).trim().toLowerCase() === targetId.toLowerCase());
-        console.log(`[ADMIN DELETE PRODUCT] Case-insensitive search index: ${indexCI}`);
-        
-        if (indexCI === -1) {
-          const availableIds = db.products.map((p: any) => String(p.id).trim());
-          console.log(`[ADMIN DELETE PRODUCT] Failed - ID not found. Available IDs:`, availableIds);
-          return res.status(404).json({ 
-            message: `Product not found (ID: ${targetId})`,
-            details: `Searched in ${availableIds.length} products`,
-            availableIds: availableIds.slice(0, 10) // Send first 10 for debugging
-          });
-        }
-        db.products.splice(indexCI, 1);
-      } else {
-        db.products.splice(index, 1);
+      if (db.products.length === initialCount) {
+        // Try fallback with case-insensitive
+        db.products = db.products.filter((p: any) => String(p.id).trim().toLowerCase() !== targetId.toLowerCase());
+      }
+
+      if (db.products.length === initialCount) {
+        console.log(`[ADMIN DELETE PRODUCT] Failed - ID not found: ${targetId}`);
+        return res.status(404).json({ message: "Product not found" });
       }
 
       await saveDb(db);
@@ -380,15 +393,32 @@ async function startServer() {
   // --- Order Routes ---
   app.post("/api/orders", async (req, res) => {
     try {
-      const token = req.headers.authorization?.split(" ")[1];
-      if (!token) return res.status(401).json({ message: "Unauthorized" });
+      console.log("[ORDER CREATE] Start - Request body keys:", Object.keys(req.body));
+      const authHeader = req.headers.authorization;
+      if (!authHeader) {
+        console.log("[ORDER CREATE] Failed - No auth header");
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const token = authHeader.split(" ")[1];
       const decoded: any = jwt.verify(token, JWT_SECRET);
+      console.log("[ORDER CREATE] User ID:", decoded.uid);
 
       const db = await getDb();
       const user = db.users.find((u: any) => u.uid === decoded.uid);
       
+      if (!req.body.items || !Array.isArray(req.body.items)) {
+        console.log("[ORDER CREATE] Failed - Items missing or not an array");
+        return res.status(400).json({ message: "Invalid order items" });
+      }
+
       // Calculate actual total on server for safety
-      const subtotal = req.body.items.reduce((acc: number, item: any) => acc + (item.price * item.quantity), 0);
+      const subtotal = req.body.items.reduce((acc: number, item: any) => {
+        const itemPrice = Number(item.price || 0);
+        const itemQty = Number(item.quantity || 1);
+        return acc + (itemPrice * itemQty);
+      }, 0);
+      
       let finalTotal = subtotal;
 
       // Automated Coupon Logic: If order >= 600, apply 50 discount
@@ -414,8 +444,9 @@ async function startServer() {
       notifyAdmins("new_order", order);
       
       res.status(201).json(order);
-    } catch (err) {
-      res.status(500).json({ message: "Failed to place order" });
+    } catch (err: any) {
+      console.error("[ORDER CREATE] Error:", err.message);
+      res.status(500).json({ message: "Failed to place order: " + err.message });
     }
   });
 
@@ -511,18 +542,22 @@ async function startServer() {
       if (user?.role === 'admin') {
         db.orders[orderIndex].hiddenForAdmin = true;
       } else if (db.orders[orderIndex].userId === decoded.uid) {
-        db.orders[orderIndex].hiddenForUser = true;
+        // For users, we can just delete it from their view, 
+        // or physically remove it if they want. 
+        // The user said "user apna order delete kr saky", so we'll remove it.
+        db.orders.splice(orderIndex, 1);
       } else {
         return res.status(403).json({ message: "Access denied" });
       }
 
-      // Cleanup: Physically remove if hidden from both
-      if (db.orders[orderIndex].hiddenForAdmin && db.orders[orderIndex].hiddenForUser) {
+      // Cleanup: Physically remove if hidden from both (if it wasn't already spliced)
+      const checkAgain = db.orders[orderIndex];
+      if (checkAgain && checkAgain.hiddenForAdmin && checkAgain.hiddenForUser) {
         db.orders.splice(orderIndex, 1);
       }
 
       await saveDb(db);
-      res.json({ message: "Order removed from view" });
+      res.json({ message: "Order deleted successfully" });
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Failed to remove order" });
     }

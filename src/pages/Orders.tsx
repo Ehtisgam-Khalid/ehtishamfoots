@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Order } from '../types';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { ShoppingBag, ChevronRight, Clock, CheckCircle2, Truck, Timer, X, Loader2 } from 'lucide-react';
+import { ShoppingBag, ChevronRight, Clock, CheckCircle2, Truck, Timer, X, Loader2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import api from '../services/api';
 import toast from 'react-hot-toast';
@@ -46,6 +46,19 @@ const Orders: React.FC = () => {
       fetchOrders();
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Cancellation failed');
+    }
+  };
+
+  const handleDeleteOrder = async (orderId: string) => {
+    const confirmDelete = window.confirm('Delete this order permanently from your history?');
+    if (!confirmDelete) return;
+
+    try {
+      await api.delete(`/orders/${orderId}`);
+      toast.success('Order deleted');
+      setOrders(prev => prev.filter(o => o.id !== orderId));
+    } catch (err: any) {
+      toast.error('Failed to delete order');
     }
   };
 
@@ -145,6 +158,14 @@ const Orders: React.FC = () => {
                     className="shrink-0 text-[10px] font-black text-red-500 uppercase tracking-widest hover:bg-red-50 dark:hover:bg-red-950/30 px-5 py-3 rounded-2xl border border-red-100 dark:border-red-900 transition-all active:scale-95"
                   >
                     Cancel Order
+                  </button>
+                )}
+                {!canCancel(order.createdAt, order.status) && order.status !== 'pending' && (
+                  <button 
+                    onClick={() => handleDeleteOrder(order.id)}
+                    className="shrink-0 text-[10px] font-black text-gray-400 hover:text-red-500 uppercase tracking-widest hover:bg-red-50 dark:hover:bg-red-950/30 px-5 py-3 rounded-2xl border border-gray-100 dark:border-gray-800 transition-all active:scale-95 flex items-center gap-2"
+                  >
+                    <Trash2 className="w-3 h-3" /> Remove
                   </button>
                 )}
               </div>

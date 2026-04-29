@@ -238,24 +238,24 @@ const Cart: React.FC = () => {
           <h2 className="text-3xl font-black text-gray-900 dark:text-white">Checkout</h2>
           
           <div className="space-y-6">
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div className="flex justify-between items-center mb-1">
                 <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Delivery Address</label>
                 <button 
                   type="button"
                   onClick={handleUseMyLocation}
                   disabled={locating}
-                  className="text-[10px] font-black uppercase tracking-widest text-orange-500 hover:text-orange-600 flex items-center gap-1.5 bg-orange-50 dark:bg-orange-950/30 px-4 py-2 rounded-xl transition-all disabled:opacity-50"
+                  className="text-[10px] font-black uppercase tracking-widest text-orange-500 hover:text-white hover:bg-orange-500 bg-orange-50 dark:bg-orange-950/30 px-5 py-2.5 rounded-2xl transition-all disabled:opacity-50 flex items-center gap-2 border border-orange-100 dark:border-orange-900 shadow-sm active:scale-95"
                 >
-                  {locating ? <Loader2 className="w-3 h-3 animate-spin" /> : <MapPin className="w-3 h-3" />}
-                  {locating ? 'Locating...' : 'Use My Home'}
+                  {locating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MapPin className="w-3.5 h-3.5" />}
+                  {locating ? 'Searching...' : 'Current Location 📍'}
                 </button>
               </div>
               <textarea 
                 placeholder="Ex: House #123, Road 45, Street 6..."
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                className="w-full p-6 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-orange-500 dark:text-white rounded-[2rem] outline-none transition-all font-bold text-sm min-h-[140px] resize-none shadow-sm"
+                className="w-full p-6 bg-gray-50 dark:bg-[#0a0a0a] border-2 border-transparent focus:border-orange-500 dark:text-white rounded-[2.5rem] outline-none transition-all font-bold text-sm min-h-[140px] resize-none shadow-inner"
               />
             </div>
 

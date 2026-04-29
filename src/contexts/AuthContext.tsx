@@ -10,6 +10,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string, phone: string) => Promise<void>;
   logout: () => void;
+  setProfile: (profile: UserProfile | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -71,7 +72,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isAdmin: profile?.role === 'admin',
       login,
       register,
-      logout
+      logout,
+      setProfile
     }}>
       {children}
     </AuthContext.Provider>

@@ -8,6 +8,8 @@ import api from '../services/api';
 import toast from 'react-hot-toast';
 import { CircularTimer } from '../components/CircularTimer';
 import { formatPrice } from '../lib/utils';
+import { io } from 'socket.io-client';
+import { useAuth } from '../contexts/AuthContext';
 
 const steps = [
   { key: 'pending', label: 'Order Placed', icon: Clock, color: 'text-orange-500', bg: 'bg-orange-50' },
@@ -19,6 +21,7 @@ const steps = [
 
 const OrderDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const { profile } = useAuth();
   const navigate = useNavigate();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
@@ -43,11 +46,27 @@ const OrderDetails: React.FC = () => {
   useEffect(() => {
     if (!id) return;
     fetchOrder();
-    
-    // Poll for status updates every 10 seconds
-    const interval = setInterval(fetchOrder, 10000);
-    return () => clearInterval(interval);
-  }, [id]);
+
+    // Socket.io for Real-time Status updates
+    const socket = io();
+    if (profile?.uid) {
+      socket.emit('join', profile.uid);
+    }
+
+    socket.on('order_status_update', (updatedOrder) => {
+      if (updatedOrder.id === id) {
+        setOrder(updatedOrder);
+        toast.success(`Order status: ${updatedOrder.status.replace('_', ' ')}`, {
+          icon: '📍',
+          position: 'top-center'
+        });
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [id, profile?.uid]);
 
   const handleCancelOrder = async () => {
     if (!order) return;
