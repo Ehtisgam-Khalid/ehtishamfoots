@@ -43,9 +43,9 @@ const AdminDashboard: React.FC = () => {
         api.get('/orders'),
         api.get('/categories')
       ]);
-      setProducts(productsRes.data);
-      setOrders(ordersRes.data);
-      setCategories(categoriesRes.data);
+      setProducts(Array.isArray(productsRes.data) ? productsRes.data : []);
+      setOrders(Array.isArray(ordersRes.data) ? ordersRes.data : []);
+      setCategories(Array.isArray(categoriesRes.data) ? categoriesRes.data : []);
     } catch (err) {
       toast.error('Failed to fetch admin data');
     } finally {

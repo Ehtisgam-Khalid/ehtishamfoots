@@ -39,13 +39,23 @@
       "role": "admin",
       "verified": true,
       "createdAt": "2026-04-28T15:13:55.435Z"
+    },
+    {
+      "uid": "eynbvjpKC_0UKGR6tSTgu",
+      "name": "Saad",
+      "email": "saad@gmail.com",
+      "phone": "123456789",
+      "password": "$2b$10$D/dc9RbuTeko2d/VHziN8O.dUThBs2GogFWbLRkM9tUZ/zYT5U0Q6",
+      "role": "user",
+      "verified": true,
+      "createdAt": "2026-04-29T07:10:23.136Z"
     }
   ],
   "products": [
     {
       "id": "1",
       "title": "Seekh Kabab",
-      "price": 12.99,
+      "price": 350,
       "description": "Juicy minced beef skewers grilled over charcoal.",
       "image": "https://images.unsplash.com/photo-1603360946369-dc9bb6258143?q=80&w=1000&auto=format&fit=crop",
       "categoryId": "1"
@@ -53,7 +63,7 @@
     {
       "id": "2",
       "title": "Bihari Tikkaa",
-      "price": 15.49,
+      "price": 450,
       "description": "Tender beef pieces marinated in traditional Bihari spices.",
       "image": "https://images.unsplash.com/photo-1544026074-633ca5e0d494?q=80&w=1000&auto=format&fit=crop",
       "categoryId": "1"
@@ -61,7 +71,7 @@
     {
       "id": "3",
       "title": "Malai Boti",
-      "price": 13.99,
+      "price": 400,
       "description": "Creamy chicken skewers grilled to perfection.",
       "image": "https://images.unsplash.com/photo-1633945274405-b6c8069047b0?q=80&w=1000&auto=format&fit=crop",
       "categoryId": "1"
@@ -69,7 +79,7 @@
     {
       "id": "4",
       "title": "Kabab Platter",
-      "price": 24.99,
+      "price": 750,
       "description": "Mix of seekh kabab, reshmi kabab, and chapli kabab.",
       "image": "https://images.unsplash.com/photo-1514326640560-7d06307a0db4?q=80&w=1000&auto=format&fit=crop",
       "categoryId": "1"
@@ -77,7 +87,7 @@
     {
       "id": "5",
       "title": "Grilled Chops",
-      "price": 18.99,
+      "price": 550,
       "description": "Spicy lamb chops grilled with herb butter.",
       "image": "https://images.unsplash.com/photo-1602491453631-e2a5ad90a131?q=80&w=1000&auto=format&fit=crop",
       "categoryId": "1"
@@ -85,7 +95,7 @@
     {
       "id": "6",
       "title": "Chicken Biryani",
-      "price": 10.99,
+      "price": 320,
       "description": "Aromatic basmati rice with spicy chicken and saffron.",
       "image": "https://images.unsplash.com/photo-1589302168068-964664d93dc0?q=80&w=1000&auto=format&fit=crop",
       "categoryId": "2"
@@ -93,7 +103,7 @@
     {
       "id": "7",
       "title": "Mutton Karahi",
-      "price": 22.99,
+      "price": 680,
       "description": "Traditional wok-cooked mutton with ginger and tomatoes.",
       "image": "https://images.unsplash.com/photo-1606471191946-45ef4811c7f4?q=80&w=1000&auto=format&fit=crop",
       "categoryId": "2"
@@ -101,7 +111,7 @@
     {
       "id": "8",
       "title": "Nihari",
-      "price": 14.99,
+      "price": 450,
       "description": "Slow-cooked beef stew with rich bone marrow gravy.",
       "image": "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=1000&auto=format&fit=crop",
       "categoryId": "2"
@@ -109,7 +119,7 @@
     {
       "id": "9",
       "title": "Palak Paneer",
-      "price": 9.99,
+      "price": 300,
       "description": "Creamy spinach curry with soft cottage cheese cubes.",
       "image": "https://images.unsplash.com/photo-1601050633647-8f8f1f3ca419?auto=format&fit=crop&q=80&w=1000",
       "categoryId": "2"
@@ -117,7 +127,7 @@
     {
       "id": "10",
       "title": "Butter Naan",
-      "price": 2.49,
+      "price": 80,
       "description": "Freshly baked clay oven bread with butter topping.",
       "image": "https://images.unsplash.com/photo-1585933334482-4113e61c335e?auto=format&fit=crop&q=80&w=1000",
       "categoryId": "2"
@@ -125,7 +135,7 @@
     {
       "id": "11",
       "title": "Zinger Burger",
-      "price": 8.99,
+      "price": 310,
       "description": "Crispy fried chicken fillet with secret spicy mayo.",
       "image": "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=1000&auto=format&fit=crop",
       "categoryId": "3"
@@ -133,7 +143,7 @@
     {
       "id": "12",
       "title": "Chicken Pizza",
-      "price": 16.99,
+      "price": 500,
       "description": "Fajita chicken, onions, and bell peppers on mozzarella.",
       "image": "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&q=80&w=1000",
       "categoryId": "3"
@@ -141,7 +151,7 @@
     {
       "id": "13",
       "title": "Loaded Fries",
-      "price": 7.49,
+      "price": 220,
       "description": "Crinkle fries topped with cheese sauce and jalapenos.",
       "image": "https://images.unsplash.com/photo-1585109649139-366815a0d713?auto=format&fit=crop&q=80&w=1000",
       "categoryId": "3"
@@ -149,7 +159,7 @@
     {
       "id": "14",
       "title": "Beef Smash Burger",
-      "price": 11.99,
+      "price": 350,
       "description": "Double beef patty with caramelized onions and cheddar.",
       "image": "https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&q=80&w=1000",
       "categoryId": "3"
@@ -157,7 +167,7 @@
     {
       "id": "15",
       "title": "Chicken Nuggets",
-      "price": 6.99,
+      "price": 200,
       "description": "10 pieces of crispy golden chicken nuggets with dip.",
       "image": "https://images.unsplash.com/photo-1569058242253-92a9c71f9867?auto=format&fit=crop&q=80&w=1000",
       "categoryId": "3"
@@ -165,7 +175,7 @@
     {
       "id": "16",
       "title": "Kung Pao Chicken",
-      "price": 13.99,
+      "price": 420,
       "description": "Spicy stir-fry chicken with peanuts and vegetables.",
       "image": "https://images.unsplash.com/photo-1525755662778-989d0524087e?auto=format&fit=crop&q=80&w=1000",
       "categoryId": "4"
@@ -173,7 +183,7 @@
     {
       "id": "17",
       "title": "Egg Fried Rice",
-      "price": 8.49,
+      "price": 250,
       "description": "Wok-tossed rice with eggs, peas, and spring onions.",
       "image": "https://images.unsplash.com/photo-1512058560366-cd2427ba5e73?auto=format&fit=crop&q=80&w=1000",
       "categoryId": "4"
@@ -181,7 +191,7 @@
     {
       "id": "18",
       "title": "Chicken Chow Mein",
-      "price": 11.49,
+      "price": 340,
       "description": "Sizzling noodles with shredded chicken and soy sauce.",
       "image": "https://images.unsplash.com/photo-1585032226651-759b368d7246?auto=format&fit=crop&q=80&w=1000",
       "categoryId": "4"
@@ -189,7 +199,7 @@
     {
       "id": "19",
       "title": "Hot & Sour Soup",
-      "price": 5.99,
+      "price": 180,
       "description": "Classic Chinese soup with vinegar and chili oil.",
       "image": "https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&q=80&w=1000",
       "categoryId": "4"
@@ -197,7 +207,7 @@
     {
       "id": "20",
       "title": "Manchurian",
-      "price": 12.99,
+      "price": 390,
       "description": "Chicken balls in spicy reddish thick gravy.",
       "image": "https://images.unsplash.com/photo-1562158074-274279ab8c5c?auto=format&fit=crop&q=80&w=1000",
       "categoryId": "4"
@@ -326,6 +336,28 @@
       "status": "out_for_delivery",
       "createdAt": "2026-04-28T14:40:51.405Z",
       "updatedAt": "2026-04-28T14:41:40.982Z"
+    },
+    {
+      "id": "SuwbeBrU_vp92CK3_ssIf",
+      "userId": "eynbvjpKC_0UKGR6tSTgu",
+      "userName": "Saad",
+      "userPhone": "123456789",
+      "items": [
+        {
+          "productId": "1",
+          "title": "Seekh Kabab",
+          "price": 12.99,
+          "quantity": 2,
+          "image": "https://images.unsplash.com/photo-1603360946369-dc9bb6258143?q=80&w=1000&auto=format&fit=crop"
+        }
+      ],
+      "total": 30.98,
+      "paymentMethod": "cod",
+      "paymentStatus": "pending",
+      "address": "Karachi ",
+      "status": "pending",
+      "createdAt": "2026-04-29T07:10:55.882Z",
+      "updatedAt": "2026-04-29T07:10:55.882Z"
     }
   ]
 }

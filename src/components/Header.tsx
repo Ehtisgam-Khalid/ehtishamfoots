@@ -16,7 +16,11 @@ export const Header: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    api.get('/categories').then(res => setCategories(res.data)).catch(() => {});
+    api.get('/categories').then(res => {
+      if (Array.isArray(res.data)) {
+        setCategories(res.data);
+      }
+    }).catch(() => {});
   }, []);
 
   const handleLogout = () => {
@@ -69,34 +73,35 @@ export const Header: React.FC = () => {
           )}
         </nav>
 
-        <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex items-center gap-1 sm:gap-4">
           <button 
             onClick={toggleTheme}
-            className="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+            className="p-2.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-2xl transition-all active:scale-90"
+            aria-label="Toggle Theme"
           >
             {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
           </button>
 
-          <Link to="/cart" className="relative p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+          <Link to="/cart" className="relative p-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-2xl transition-all active:scale-90">
             <ShoppingCart className="w-6 h-6 text-gray-700 dark:text-gray-300" />
             {items.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-orange-600 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-white dark:border-gray-900">
+              <span className="absolute top-1.5 right-1.5 bg-orange-600 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-white dark:border-gray-900">
                 {items.reduce((acc, i) => acc + i.quantity, 0)}
               </span>
             )}
           </Link>
 
           {user ? (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1 sm:gap-3">
               <Link to="/profile" className="hidden sm:flex items-center gap-2 hover:opacity-80 transition-opacity">
-                <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                  <User className="w-5 h-5 text-gray-600" />
+                <div className="w-8 h-8 bg-gray-200 dark:bg-gray-800 rounded-full flex items-center justify-center">
+                  <User className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                 </div>
-                <span className="font-bold text-sm text-gray-700">{profile?.name || user.email}</span>
+                <span className="font-bold text-sm text-gray-700 dark:text-gray-300">{profile?.name || user.email}</span>
               </Link>
               <button 
                 onClick={handleLogout}
-                className="p-2 text-gray-500 hover:text-red-500 transition-colors"
+                className="p-2.5 text-gray-400 hover:text-red-500 transition-colors"
                 title="Logout"
               >
                 <LogOut className="w-5 h-5" />
@@ -105,14 +110,14 @@ export const Header: React.FC = () => {
           ) : (
             <Link 
               to="/auth" 
-              className="px-5 py-2 bg-orange-500 text-white font-bold rounded-full hover:bg-orange-600 transition-all shadow-md active:scale-95 text-sm"
+              className="px-4 sm:px-6 py-2 bg-orange-500 text-white font-black rounded-2xl hover:bg-orange-600 transition-all shadow-lg shadow-orange-100 dark:shadow-none active:scale-95 text-xs uppercase tracking-widest whitespace-nowrap"
             >
               Sign In
             </Link>
           )}
           
           <button 
-            className="md:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+            className="md:hidden p-2.5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-2xl transition-all"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
             <MenuIcon className="w-6 h-6" />

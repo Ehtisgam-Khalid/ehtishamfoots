@@ -53,14 +53,18 @@ const Cart: React.FC = () => {
           const data = await response.json();
           if (data.display_name) {
             const addr = data.address;
-            const house = addr.house_number || addr.building || '';
-            const road = addr.road || addr.suburb || addr.neighbourhood || '';
-            const city = addr.city || addr.town || addr.village || '';
-            const formatted = `${house ? 'House ' + house + ', ' : ''}${road ? road + ', ' : ''}${city}`.trim().replace(/,$/, '');
+            // Get most specific parts first
+            const parts = [];
+            if (addr.house_number || addr.building) parts.push(addr.house_number || addr.building);
+            if (addr.road) parts.push(addr.road);
+            if (addr.suburb || addr.neighbourhood) parts.push(addr.suburb || addr.neighbourhood);
+            if (addr.city || addr.town || addr.village) parts.push(addr.city || addr.town || addr.village);
+            
+            const formatted = parts.join(', ');
             setAddress(formatted || data.display_name);
-            toast.success('Home address located!');
+            toast.success('Location detected! 📍');
           } else {
-            setAddress(`${latitude}, ${longitude}`);
+            setAddress(`${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
             toast.success('Coordinates captured');
           }
         } catch (error) {

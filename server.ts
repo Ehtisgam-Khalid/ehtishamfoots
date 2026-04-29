@@ -37,6 +37,27 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Normalize prices on startup
+  try {
+    const db = await getDb();
+    let changed = false;
+    db.products = db.products.map((p: any) => {
+      // If it's a main item (not a small side like naan under 100), ensure it's at least 300
+      if (p.price < 300 && p.price > 50) {
+        p.price = 300 + (Math.floor(Math.random() * 50));
+        changed = true;
+      } else if (p.price <= 50) {
+        // Small items like Naan
+        p.price = 80;
+        changed = true;
+      }
+      return p;
+    });
+    if (changed) await saveDb(db);
+  } catch (e) {
+    console.error("Migration error:", e);
+  }
+
   // Socket.io connection
   io.on("connection", (socket) => {
     console.log("Client connected:", socket.id);
@@ -364,6 +385,8 @@ async function startServer() {
       const decoded: any = jwt.verify(token, JWT_SECRET);
 
       const db = await getDb();
+      const user = db.users.find((u: any) => u.uid === decoded.uid);
+      
       // Calculate actual total on server for safety
       const subtotal = req.body.items.reduce((acc: number, item: any) => acc + (item.price * item.quantity), 0);
       let finalTotal = subtotal;
@@ -376,8 +399,8 @@ async function startServer() {
       const order = {
         id: nanoid(),
         userId: decoded.uid,
-        userName: user?.name,
-        userPhone: user?.phone,
+        userName: user?.name || "Guest",
+        userPhone: user?.phone || "N/A",
         ...req.body,
         total: finalTotal, // Use server-calculated total
         status: "pending",

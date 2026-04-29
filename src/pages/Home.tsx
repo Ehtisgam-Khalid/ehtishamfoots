@@ -34,8 +34,8 @@ const Home: React.FC = () => {
           api.get('/products'),
           api.get('/categories')
         ]);
-        setProducts(productsRes.data);
-        setCategories(categoriesRes.data);
+        setProducts(Array.isArray(productsRes.data) ? productsRes.data : []);
+        setCategories(Array.isArray(categoriesRes.data) ? categoriesRes.data : []);
       } catch (err) {
         toast.error('Failed to fetch data');
       } finally {
