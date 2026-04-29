@@ -63,7 +63,7 @@ const Home: React.FC = () => {
   return (
     <div className="space-y-8">
       {/* Hero Section */}
-      <section className="relative h-64 md:h-80 rounded-[3rem] overflow-hidden shadow-2xl">
+      <section className="relative h-56 sm:h-64 md:h-80 rounded-[2rem] sm:rounded-[3rem] overflow-hidden shadow-2xl">
         <img 
           src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=2070&auto=format&fit=crop" 
           alt="Premium Food Selection" 
@@ -75,7 +75,7 @@ const Home: React.FC = () => {
           <motion.h1 
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="text-3xl md:text-5xl font-black text-white mb-2 md:mb-4 leading-tight"
+            className="text-2xl sm:text-3xl md:text-5xl font-black text-white mb-1 md:mb-4 leading-tight"
           >
             Delicious Food,<br />Delivered Fast
           </motion.h1>
@@ -83,7 +83,7 @@ const Home: React.FC = () => {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.1 }}
-            className="text-gray-200 text-sm md:text-xl font-bold mb-4 md:mb-8 max-w-[280px] md:max-w-none"
+            className="text-gray-200 text-xs sm:text-sm md:text-xl font-bold mb-4 md:mb-8 max-w-[200px] sm:max-w-[280px] md:max-w-none"
           >
             The best restaurants in your city at your door.
           </motion.p>
@@ -96,7 +96,7 @@ const Home: React.FC = () => {
           >
             <button 
               onClick={() => document.getElementById('menu')?.scrollIntoView({ behavior: 'smooth' })}
-              className="bg-orange-500 text-white px-8 md:px-10 py-3 md:py-4 rounded-2xl font-black hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/20 active:scale-95 text-sm md:text-base"
+              className="bg-orange-500 text-white px-6 sm:px-8 md:px-10 py-2.5 sm:py-3 md:py-4 rounded-xl sm:rounded-2xl font-black hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/20 active:scale-95 text-xs sm:text-sm md:text-base"
             >
               Order Now
             </button>
@@ -126,10 +126,10 @@ const Home: React.FC = () => {
           />
         </div>
         
-        <div className="flex gap-3 overflow-x-auto w-full md:w-auto pb-4 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
+        <div className="flex gap-2 sm:gap-3 overflow-x-auto w-full md:w-auto pb-4 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
           <button 
             onClick={() => setSelectedCategory('All')}
-            className={`px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-xs transition-all whitespace-nowrap min-w-max border-2 ${
+            className={`px-6 sm:px-8 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[10px] sm:text-xs transition-all whitespace-nowrap min-w-max border-2 ${
               selectedCategory === 'All' 
               ? 'bg-orange-500 border-orange-500 text-white shadow-xl shadow-orange-100 dark:shadow-none' 
               : 'bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 border-gray-50 dark:border-gray-800 hover:border-orange-200'
@@ -141,7 +141,7 @@ const Home: React.FC = () => {
             <button 
               key={category.id}
               onClick={() => setSelectedCategory(category.name)}
-              className={`px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-xs transition-all whitespace-nowrap min-w-max border-2 ${
+              className={`px-6 sm:px-8 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl font-black uppercase tracking-widest text-[10px] sm:text-xs transition-all whitespace-nowrap min-w-max border-2 ${
                 selectedCategory === category.name 
                 ? 'bg-orange-500 border-orange-500 text-white shadow-xl shadow-orange-100 dark:shadow-none' 
                 : 'bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 border-gray-50 dark:border-gray-800 hover:border-orange-200'

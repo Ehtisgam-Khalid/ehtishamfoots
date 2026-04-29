@@ -16,6 +16,16 @@
   html.dark body {
     @apply bg-[#050505] text-gray-100;
   }
+  
+  /* Mobile optimized spacing */
+  @media (max-width: 640px) {
+    .container {
+      @apply px-4;
+    }
+    input, button {
+      @apply cursor-default; /* Better for touch */
+    }
+  }
 }
 
 /* Ensure dark mode colors are more intense */
