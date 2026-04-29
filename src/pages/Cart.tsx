@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { Trash2, Plus, Minus, ArrowRight, CreditCard, Truck, ShoppingBag, Loader2 } from 'lucide-react';
+import { Trash2, Plus, Minus, ArrowRight, CreditCard, Truck, ShoppingBag, Loader2, MapPin } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
@@ -12,8 +12,47 @@ const Cart: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [locating, setLocating] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'cod' | 'online'>('cod');
   const [address, setAddress] = useState('');
+
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error('Geolocation is not supported by your browser');
+      return;
+    }
+
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          // Use OpenStreetMap Nominatim for free reverse geocoding
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`
+          );
+          const data = await response.json();
+          if (data.display_name) {
+            setAddress(data.display_name);
+            toast.success('Location updated!');
+          } else {
+            setAddress(`${latitude}, ${longitude}`);
+            toast.success('Coordinates added');
+          }
+        } catch (error) {
+          console.error('Error fetching address:', error);
+          toast.error('Could not get address, but found coordinates');
+        } finally {
+          setLocating(false);
+        }
+      },
+      (error) => {
+        console.error('Geolocation error:', error);
+        toast.error('Permission denied or location unavailable');
+        setLocating(false);
+      }
+    );
+  };
 
   const handleCheckout = async () => {
     if (!user) {
@@ -141,7 +180,22 @@ const Cart: React.FC = () => {
           
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">Delivery Address</label>
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-sm font-bold text-gray-700">Delivery Address</label>
+                <button 
+                  type="button"
+                  onClick={handleUseMyLocation}
+                  disabled={locating}
+                  className="text-xs font-black uppercase tracking-widest text-orange-500 hover:text-orange-600 flex items-center gap-1 bg-orange-50 px-3 py-1.5 rounded-xl transition-all disabled:opacity-50"
+                >
+                  {locating ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <MapPin className="w-3 h-3" />
+                  )}
+                  {locating ? 'Locating...' : 'Use My Location'}
+                </button>
+              </div>
               <textarea 
                 placeholder="Where should we bring your food?"
                 value={address}

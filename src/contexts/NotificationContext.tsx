@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { Bell, ShoppingBag, Package } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
@@ -13,11 +13,19 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [socket, setSocket] = useState<Socket | null>(null);
-  const [audio] = useState(new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'));
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   
   useEffect(() => {
+    audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+    audioRef.current.load();
+
     const newSocket = io(window.location.origin);
     setSocket(newSocket);
+
+    // Request desktop notification permission
+    if ("Notification" in window) {
+      Notification.requestPermission();
+    }
 
     return () => {
       newSocket.close();
@@ -54,8 +62,17 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, [socket, user]);
 
   const notify = (title: string, message: string, type: 'info' | 'success' | 'order' | 'product' = 'info') => {
-    if (type === 'order') {
-      audio.play().catch(e => console.log('Audio play failed', e));
+    // Play sound for all notification types in this advanced mode, or just for specific ones
+    if (type === 'order' || type === 'product' || type === 'info') {
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().catch(e => console.log('Audio play failed', e));
+      }
+    }
+
+    // System Notification if permitted and tab is backgrounded
+    if ("Notification" in window && Notification.permission === "granted" && document.visibilityState !== 'visible') {
+      new Notification(title, { body: message, icon: '/favicon.ico' });
     }
 
     toast.custom((t) => (
