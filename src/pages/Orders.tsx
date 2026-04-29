@@ -3,10 +3,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { Order } from '../types';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { ShoppingBag, ChevronRight, Clock, CheckCircle2, Truck, Timer, X } from 'lucide-react';
+import { ShoppingBag, ChevronRight, Clock, CheckCircle2, Truck, Timer, X, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import { formatPrice } from '../lib/utils';
 
 const Orders: React.FC = () => {
   const { user } = useAuth();
@@ -66,63 +67,64 @@ const Orders: React.FC = () => {
     return timePassed < 5 * 60 * 1000;
   };
 
-  if (loading) return <div className="flex justify-center p-20">Loading orders...</div>;
+  if (loading) return <div className="flex justify-center p-20"><Loader2 className="w-10 h-10 text-orange-500 animate-spin" /></div>;
 
   if (orders.length === 0) {
     return (
-      <div className="text-center py-20 bg-white rounded-3xl border border-gray-100 shadow-sm">
-        <ShoppingBag className="w-16 h-16 text-gray-200 mx-auto mb-4" />
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">No orders yet</h2>
-        <p className="text-gray-500 mb-8 font-medium">When you place an order, it will appear here.</p>
-        <Link to="/" className="text-orange-500 font-bold hover:underline">Start Shopping</Link>
+      <div className="text-center py-20 bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm">
+        <ShoppingBag className="w-16 h-16 text-gray-200 dark:text-gray-700 mx-auto mb-4" />
+        <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-2">No orders yet</h2>
+        <p className="text-gray-500 dark:text-gray-400 mb-8 font-bold uppercase tracking-widest text-xs">When you place an order, it will appear here.</p>
+        <Link to="/" className="inline-block bg-orange-500 text-white px-10 py-4 rounded-2xl font-black hover:bg-orange-600 transition-all active:scale-95">Start Shopping</Link>
       </div>
     );
   }
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      <h1 className="text-3xl font-extrabold text-gray-900">Your Orders</h1>
+      <h1 className="text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Your Orders</h1>
 
-      <div className="space-y-4">
+      <div className="space-y-6">
         {orders.map((order) => (
           <motion.div 
             key={order.id}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
+            className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 border border-gray-100 dark:border-gray-800 shadow-xl shadow-gray-50 dark:shadow-none hover:shadow-gray-100 dark:hover:border-orange-500/30 transition-all group"
           >
-            <div className="flex flex-col sm:flex-row justify-between gap-4 mb-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-gray-50 rounded-2xl">
+            <div className="flex flex-col sm:flex-row justify-between gap-6 mb-8">
+              <div className="flex items-center gap-5">
+                <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
                   {getStatusIcon(order.status)}
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-gray-400 font-mono tracking-tighter uppercase">{order.id.slice(0, 8)}</span>
-                    <span className={`px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest border ${
-                      order.status === 'delivered' ? 'bg-green-50 text-green-600 border-green-100' :
-                      order.status === 'pending' ? 'bg-orange-50 text-orange-600 border-orange-100' :
-                      'bg-blue-50 text-blue-600 border-blue-100'
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] font-black text-gray-400 font-mono tracking-widest uppercase">#{order.id.slice(0, 8)}</span>
+                    <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${
+                      order.status === 'delivered' ? 'bg-green-50 text-green-600 border-green-100 dark:bg-green-950/30 dark:text-green-400' :
+                      order.status === 'pending' ? 'bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-950/30 dark:text-orange-400' :
+                      order.status === 'cancelled' ? 'bg-red-50 text-red-600 border-red-100 dark:bg-red-950/30 dark:text-red-400' :
+                      'bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-950/30 dark:text-blue-400'
                     }`}>
                       {order.status.replace('_', ' ')}
                     </span>
                   </div>
-                  <p className="text-gray-500 text-xs font-medium mt-1">
+                  <p className="text-gray-400 dark:text-gray-500 text-[10px] font-black uppercase tracking-widest mt-2">
                     {order.createdAt ? format(new Date(order.createdAt), 'MMM dd, yyyy • hh:mm a') : 'Just now'}
                   </p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-2xl font-black text-gray-900">${order.total.toFixed(2)}</p>
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">{order.items.length} Items</p>
+              <div className="text-left sm:text-right">
+                <p className="text-3xl font-black text-gray-900 dark:text-white tabular-nums">{formatPrice(order.total)}</p>
+                <p className="text-[10px] text-gray-400 font-black uppercase tracking-[0.2em] mt-1">{order.items.length} Delicious Items</p>
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center justify-between pt-4 border-t border-gray-50 gap-4">
-              <div className="flex items-center gap-4">
-                <div className="flex -space-x-4">
-                  {order.items.slice(0, 3).map((item, i) => (
-                    <div key={i} className="w-10 h-10 rounded-full border-2 border-white overflow-hidden shadow-sm">
+            <div className="flex flex-col sm:flex-row items-center justify-between pt-6 border-t border-gray-50 dark:border-gray-800 gap-6">
+              <div className="flex items-center gap-5 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 scrollbar-hide">
+                <div className="flex -space-x-3">
+                  {order.items.slice(0, 4).map((item, i) => (
+                    <div key={i} className="w-12 h-12 rounded-2xl border-4 border-white dark:border-gray-900 overflow-hidden shadow-md shrink-0">
                       <img 
                         src={item.image} 
                         alt={item.title} 
@@ -131,16 +133,16 @@ const Orders: React.FC = () => {
                       />
                     </div>
                   ))}
-                  {order.items.length > 3 && (
-                    <div className="w-10 h-10 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-gray-500">
-                      +{order.items.length - 3}
+                  {order.items.length > 4 && (
+                    <div className="w-12 h-12 rounded-2xl bg-orange-100 dark:bg-orange-950/30 border-4 border-white dark:border-gray-900 flex items-center justify-center text-[10px] font-black text-orange-600 dark:text-orange-400">
+                      +{order.items.length - 4}
                     </div>
                   )}
                 </div>
                 {canCancel(order.createdAt, order.status) && (
                   <button 
                     onClick={() => handleCancelOrder(order.id)}
-                    className="text-xs font-bold text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-xl border border-red-100 transition-all"
+                    className="shrink-0 text-[10px] font-black text-red-500 uppercase tracking-widest hover:bg-red-50 dark:hover:bg-red-950/30 px-5 py-3 rounded-2xl border border-red-100 dark:border-red-900 transition-all active:scale-95"
                   >
                     Cancel Order
                   </button>
@@ -148,9 +150,9 @@ const Orders: React.FC = () => {
               </div>
               <Link 
                 to={`/orders/${order.id}`}
-                className="flex items-center gap-1 text-orange-500 font-bold hover:gap-2 transition-all p-2"
+                className="w-full sm:w-auto bg-gray-900 dark:bg-white dark:text-gray-900 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-widest flex items-center justify-center gap-2 hover:bg-gray-800 transition-all active:scale-95 shadow-xl shadow-gray-200 dark:shadow-none"
               >
-                Track Order <ChevronRight className="w-5 h-5" />
+                Track Now <ChevronRight className="w-5 h-5" />
               </Link>
             </div>
           </motion.div>

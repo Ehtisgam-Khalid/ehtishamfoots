@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
 import { NotificationProvider } from './contexts/NotificationContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 
@@ -28,7 +29,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; requiresAdmin?: bool
 
 const AppContent: React.FC = () => {
   return (
-    <div className="min-h-screen bg-[#FAFAFA] font-sans antialiased text-gray-900">
+    <div className="min-h-screen bg-[#FAFAFA] dark:bg-gray-950 font-sans antialiased text-gray-900 dark:text-gray-100 transition-colors duration-300">
       <Header />
       <main className="max-w-7xl mx-auto px-4 py-8">
         <Routes>
@@ -79,11 +80,13 @@ export default function App() {
   return (
     <Router>
       <AuthProvider>
-        <NotificationProvider>
-          <CartProvider>
-            <AppContent />
-          </CartProvider>
-        </NotificationProvider>
+        <ThemeProvider>
+          <NotificationProvider>
+            <CartProvider>
+              <AppContent />
+            </CartProvider>
+          </NotificationProvider>
+        </ThemeProvider>
       </AuthProvider>
     </Router>
   );

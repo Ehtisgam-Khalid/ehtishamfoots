@@ -7,6 +7,7 @@ import { useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import api from '../services/api';
+import { formatPrice } from '../lib/utils';
 
 const Home: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -60,7 +61,7 @@ const Home: React.FC = () => {
   return (
     <div className="space-y-8">
       {/* Hero Section */}
-      <section className="relative h-64 md:h-80 rounded-3xl overflow-hidden shadow-2xl">
+      <section className="relative h-64 md:h-80 rounded-[3rem] overflow-hidden shadow-2xl">
         <img 
           src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=2070&auto=format&fit=crop" 
           alt="Premium Food Selection" 
@@ -68,11 +69,11 @@ const Home: React.FC = () => {
           referrerPolicy="no-referrer"
           loading="eager"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-transparent flex flex-col justify-center px-6 md:px-12">
+        <div className="absolute inset-0 bg-gradient-to-r from-black/80 to-transparent flex flex-col justify-center px-6 md:px-12">
           <motion.h1 
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="text-3xl md:text-5xl font-extrabold text-white mb-2 md:mb-4 leading-tight"
+            className="text-3xl md:text-5xl font-black text-white mb-2 md:mb-4 leading-tight"
           >
             Delicious Food,<br />Delivered Fast
           </motion.h1>
@@ -80,7 +81,7 @@ const Home: React.FC = () => {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.1 }}
-            className="text-gray-200 text-sm md:text-xl font-medium mb-4 md:mb-8 max-w-[280px] md:max-w-none"
+            className="text-gray-200 text-sm md:text-xl font-bold mb-4 md:mb-8 max-w-[280px] md:max-w-none"
           >
             The best restaurants in your city at your door.
           </motion.p>
@@ -93,7 +94,7 @@ const Home: React.FC = () => {
           >
             <button 
               onClick={() => document.getElementById('menu')?.scrollIntoView({ behavior: 'smooth' })}
-              className="bg-orange-500 text-white px-6 md:px-8 py-2 md:py-3 rounded-xl md:rounded-2xl font-bold hover:bg-orange-600 transition-all shadow-lg shadow-orange-100 active:scale-95 text-sm md:text-base"
+              className="bg-orange-500 text-white px-8 md:px-10 py-3 md:py-4 rounded-2xl font-black hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/20 active:scale-95 text-sm md:text-base"
             >
               Order Now
             </button>
@@ -101,9 +102,9 @@ const Home: React.FC = () => {
             {isAdmin && (
               <Link 
                 to="/admin" 
-                className="bg-white/20 backdrop-blur-md text-white border border-white/30 px-6 md:px-8 py-2 md:py-3 rounded-xl md:rounded-2xl font-bold hover:bg-white/30 transition-all active:scale-95 flex items-center gap-2 text-sm md:text-base"
+                className="bg-white/10 backdrop-blur-md text-white border border-white/20 px-8 md:px-10 py-3 md:py-4 rounded-2xl font-black hover:bg-white/20 transition-all active:scale-95 flex items-center gap-3 text-sm md:text-base invisible sm:visible shadow-xl"
               >
-                <ShieldCheck className="w-4 h-4 md:w-5 md:h-5 text-purple-300" /> Admin
+                <ShieldCheck className="w-5 h-5 text-purple-400" /> Admin
               </Link>
             )}
           </motion.div>
@@ -111,25 +112,25 @@ const Home: React.FC = () => {
       </section>
 
       {/* Search and Filter */}
-      <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-        <div className="relative w-full md:w-96">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+      <div id="menu" className="flex flex-col md:flex-row gap-6 items-center justify-between transition-all">
+        <div className="relative w-full md:w-96 group">
+          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 w-5 h-5 transition-colors" />
           <input 
             type="text"
             placeholder="Search for your favorite food..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all shadow-sm"
+            className="w-full pl-14 pr-6 py-4 bg-white dark:bg-gray-900 border-2 border-transparent focus:border-orange-500 dark:text-white rounded-3xl outline-none transition-all shadow-xl shadow-gray-100 dark:shadow-none font-bold"
           />
         </div>
         
-        <div className="flex gap-2 overflow-x-auto w-full md:w-auto pb-4 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
+        <div className="flex gap-3 overflow-x-auto w-full md:w-auto pb-4 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
           <button 
             onClick={() => setSelectedCategory('All')}
-            className={`px-6 py-2.5 rounded-2xl font-semibold transition-all whitespace-nowrap min-w-max ${
+            className={`px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-xs transition-all whitespace-nowrap min-w-max border-2 ${
               selectedCategory === 'All' 
-              ? 'bg-orange-500 text-white shadow-lg shadow-orange-200' 
-              : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-100'
+              ? 'bg-orange-500 border-orange-500 text-white shadow-xl shadow-orange-100 dark:shadow-none' 
+              : 'bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 border-gray-50 dark:border-gray-800 hover:border-orange-200'
             }`}
           >
             All Meals
@@ -138,10 +139,10 @@ const Home: React.FC = () => {
             <button 
               key={category.id}
               onClick={() => setSelectedCategory(category.name)}
-              className={`px-6 py-2.5 rounded-2xl font-semibold transition-all whitespace-nowrap min-w-max ${
+              className={`px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-xs transition-all whitespace-nowrap min-w-max border-2 ${
                 selectedCategory === category.name 
-                ? 'bg-orange-500 text-white shadow-lg shadow-orange-200' 
-                : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-100'
+                ? 'bg-orange-500 border-orange-500 text-white shadow-xl shadow-orange-100 dark:shadow-none' 
+                : 'bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 border-gray-50 dark:border-gray-800 hover:border-orange-200'
               }`}
             >
               {category.name}
@@ -153,49 +154,49 @@ const Home: React.FC = () => {
       {/* Product Grid */}
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20">
-          <Loader2 className="w-12 h-12 text-orange-500 animate-spin mb-4" />
-          <p className="text-gray-500 font-medium">Fetching menu...</p>
+          <Loader2 className="w-16 h-16 text-orange-500 animate-spin mb-4" />
+          <p className="text-gray-500 dark:text-gray-400 font-black uppercase tracking-widest text-xs">Fetching menu...</p>
         </div>
       ) : (
         <AnimatePresence mode="popLayout">
           <motion.div 
             layout
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"
           >
             {filteredProducts.map(product => (
               <motion.div 
                 key={product.id}
                 layout
-                initial={{ opacity: 0, scale: 0.9 }}
+                initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="group bg-white rounded-3xl overflow-hidden border border-gray-100 hover:border-orange-200 transition-all hover:shadow-xl hover:shadow-orange-100/50"
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="group bg-white dark:bg-gray-900 rounded-[2.5rem] overflow-hidden border border-gray-100 dark:border-gray-800 hover:border-orange-100 dark:hover:border-orange-500/30 transition-all hover:shadow-2xl hover:shadow-gray-100 dark:hover:shadow-none"
               >
-                <div className="relative h-48 overflow-hidden">
+                <div className="relative h-56 overflow-hidden">
                   <img 
                     src={product.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=1000'} 
                     alt={product.title} 
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                     referrerPolicy="no-referrer"
                     loading="lazy"
                   />
-                  <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1 rounded-full text-orange-600 font-bold text-sm shadow-sm">
-                    ${product.price.toFixed(2)}
+                  <div className="absolute top-6 right-6 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md px-4 py-2 rounded-2xl text-orange-600 dark:text-orange-400 font-black text-sm shadow-xl tabular-nums">
+                    {formatPrice(product.price)}
                   </div>
                 </div>
-                <div className="p-6 space-y-3">
-                  <div className="flex justify-between items-start">
-                    <h3 className="font-bold text-lg text-gray-900 group-hover:text-orange-600 transition-colors">{product.title}</h3>
-                    <span className="text-[10px] uppercase tracking-widest font-bold text-gray-400">
+                <div className="p-8 space-y-4">
+                  <div className="space-y-1">
+                    <span className="text-[10px] uppercase tracking-[0.2em] font-black text-orange-500">
                       {categories.find(c => c.id === product.categoryId)?.name || product.category}
                     </span>
+                    <h3 className="font-black text-xl text-gray-900 dark:text-white group-hover:text-orange-600 transition-colors line-clamp-1">{product.title}</h3>
                   </div>
-                  <p className="text-gray-500 text-sm line-clamp-2 min-h-[40px]">
-                    {product.description || 'No description available.'}
+                  <p className="text-gray-500 dark:text-gray-400 text-sm font-medium line-clamp-2 min-h-[40px]">
+                    {product.description || 'Crafted with premium ingredients for the ultimate taste experience.'}
                   </p>
                   <button 
                     onClick={() => handleAddToCart(product)}
-                    className="w-full bg-orange-50 text-orange-600 hover:bg-orange-500 hover:text-white py-3 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all group-active:scale-95"
+                    className="w-full bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white hover:bg-orange-500 hover:text-white py-4 rounded-2xl font-black flex items-center justify-center gap-3 transition-all active:scale-95 shadow-sm"
                   >
                     <Plus className="w-5 h-5" />
                     Add to Cart
@@ -208,8 +209,8 @@ const Home: React.FC = () => {
       )}
 
       {filteredProducts.length === 0 && !loading && (
-        <div className="text-center py-20 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
-          <p className="text-gray-400 font-medium">No results found matching your criteria.</p>
+        <div className="text-center py-24 bg-white dark:bg-gray-900 rounded-[3rem] border-2 border-dashed border-gray-100 dark:border-gray-800">
+          <p className="text-gray-400 dark:text-gray-500 font-black uppercase tracking-widest text-xs">No food items match your search.</p>
         </div>
       )}
     </div>

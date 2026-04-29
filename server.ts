@@ -364,7 +364,14 @@ async function startServer() {
       const decoded: any = jwt.verify(token, JWT_SECRET);
 
       const db = await getDb();
-      const user = db.users.find((u: any) => u.uid === decoded.uid);
+      // Calculate actual total on server for safety
+      const subtotal = req.body.items.reduce((acc: number, item: any) => acc + (item.price * item.quantity), 0);
+      let finalTotal = subtotal;
+
+      // Automated Coupon Logic: If order >= 600, apply 50 discount
+      if (subtotal >= 600) {
+        finalTotal -= 50;
+      }
 
       const order = {
         id: nanoid(),
@@ -372,6 +379,7 @@ async function startServer() {
         userName: user?.name,
         userPhone: user?.phone,
         ...req.body,
+        total: finalTotal, // Use server-calculated total
         status: "pending",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
@@ -398,18 +406,20 @@ async function startServer() {
       const user = db.users.find((u: any) => u.uid === decoded.uid);
       
       if (user?.role === 'admin') {
-        // Enrich orders with user info if missing (for legacy orders)
-        const enrichedOrders = db.orders.map((o: any) => {
-          const u = db.users.find((u: any) => u.uid === o.userId);
-          return {
-            ...o,
-            userName: o.userName || u?.name || 'Unknown',
-            userPhone: o.userPhone || u?.phone || 'N/A'
-          };
-        });
+        // Enrich orders with user info if missing (for legacy orders) and filter hidden
+        const enrichedOrders = db.orders
+          .filter((o: any) => !o.hiddenForAdmin)
+          .map((o: any) => {
+            const u = db.users.find((u: any) => u.uid === o.userId);
+            return {
+              ...o,
+              userName: o.userName || u?.name || 'Unknown',
+              userPhone: o.userPhone || u?.phone || 'N/A'
+            };
+          });
         res.json(enrichedOrders);
       } else {
-        res.json(db.orders.filter((o: any) => o.userId === decoded.uid));
+        res.json(db.orders.filter((o: any) => o.userId === decoded.uid && !o.hiddenForUser));
       }
     } catch (err) {
       res.status(500).json({ message: "Failed to fetch orders" });
@@ -461,8 +471,6 @@ async function startServer() {
   app.delete("/api/orders/:id", async (req, res) => {
     try {
       const targetId = String(req.params.id).trim();
-      console.log(`[ORDER DELETE] Request for ID: "${targetId}"`);
-      
       const authHeader = req.headers.authorization;
       if (!authHeader) return res.status(401).json({ message: "No authorization header" });
       
@@ -471,25 +479,29 @@ async function startServer() {
 
       const db = await getDb();
       const user = db.users.find((u: any) => u.uid === decoded.uid);
-      
-      if (!user || user.role !== 'admin') {
-        return res.status(403).json({ message: "Admin access required" });
-      }
+      const orderIndex = db.orders.findIndex((o: any) => String(o.id).trim() === targetId);
 
-      const initialCount = db.orders.length;
-      db.orders = db.orders.filter((o: any) => String(o.id).trim() !== targetId);
-      
-      if (db.orders.length === initialCount) {
-        console.log(`[ORDER DELETE] Order not found: ${targetId}`);
+      if (orderIndex === -1) {
         return res.status(404).json({ message: "Order not found" });
       }
 
+      if (user?.role === 'admin') {
+        db.orders[orderIndex].hiddenForAdmin = true;
+      } else if (db.orders[orderIndex].userId === decoded.uid) {
+        db.orders[orderIndex].hiddenForUser = true;
+      } else {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Cleanup: Physically remove if hidden from both
+      if (db.orders[orderIndex].hiddenForAdmin && db.orders[orderIndex].hiddenForUser) {
+        db.orders.splice(orderIndex, 1);
+      }
+
       await saveDb(db);
-      console.log(`[ORDER DELETE] Successfully deleted: ${targetId}`);
-      res.json({ message: "Order deleted successfully" });
+      res.json({ message: "Order removed from view" });
     } catch (err: any) {
-      console.error("Delete order error:", err);
-      res.status(500).json({ message: err.message || "Failed to delete order" });
+      res.status(500).json({ message: err.message || "Failed to remove order" });
     }
   });
 

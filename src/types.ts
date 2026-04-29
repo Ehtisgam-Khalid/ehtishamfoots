@@ -1,3 +1,7 @@
+export const CURRENCY = 'Rs.';
+export const MIN_FOR_COUPON = 600;
+export const COUPON_DISCOUNT = 50;
+
 export type UserRole = 'user' | 'admin' | 'rider';
 
 export interface UserProfile {
@@ -48,7 +52,10 @@ export interface Order {
   status: OrderStatus;
   paymentMethod: PaymentMethod;
   paymentStatus?: 'pending' | 'paid';
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
   address: string;
+  hiddenForAdmin?: boolean;
+  hiddenForUser?: boolean;
+  discount?: number;
 }

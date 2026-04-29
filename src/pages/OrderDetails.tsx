@@ -7,6 +7,7 @@ import { format } from 'date-fns';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import { CircularTimer } from '../components/CircularTimer';
+import { formatPrice } from '../lib/utils';
 
 const steps = [
   { key: 'pending', label: 'Order Placed', icon: Clock, color: 'text-orange-500', bg: 'bg-orange-50' },
@@ -69,15 +70,13 @@ const OrderDetails: React.FC = () => {
   if (!order) return <div className="text-center py-20 font-bold text-gray-500">Order not found.</div>;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 pb-32 px-4 sm:px-0">
-      <div className="flex items-center justify-between">
-        <Link to="/orders" className="group flex items-center gap-2 text-gray-400 font-bold hover:text-gray-900 transition-all">
-          <div className="bg-white p-2 rounded-xl border border-gray-100 group-hover:bg-gray-50 transition-colors">
-            <ChevronLeft className="w-5 h-5" /> 
-          </div>
+    <div className="max-w-5xl mx-auto space-y-8 pb-32 px-4 sm:px-6">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <Link to="/orders" className="group flex items-center gap-2 text-gray-400 font-black hover:text-orange-500 dark:hover:text-white transition-all uppercase text-[10px] tracking-widest bg-white dark:bg-gray-800 px-6 py-3 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+          <ChevronLeft className="w-4 h-4" /> 
           Back to Orders
         </Link>
-        <span className="text-[10px] font-bold text-gray-300 uppercase tracking-[0.2em] font-mono">
+        <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest font-mono">
           Placed on {format(new Date(order.createdAt), 'MMM dd, p')}
         </span>
       </div>
@@ -85,71 +84,59 @@ const OrderDetails: React.FC = () => {
       {/* Main Tracking Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
-          <div className="bg-white p-8 sm:p-12 rounded-[3rem] border border-gray-100 shadow-2xl shadow-gray-100 flex flex-col items-center text-center relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-8">
+          <div className="bg-white dark:bg-gray-900 p-8 sm:p-12 rounded-[2.5rem] sm:rounded-[3.5rem] border border-gray-100 dark:border-gray-800 shadow-2xl shadow-gray-100 dark:shadow-none flex flex-col items-center text-center relative overflow-hidden">
+            <div className="absolute top-6 right-6">
                <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm ${
-                order.status === 'delivered' ? 'bg-green-50 text-green-600 border-green-100' :
-                order.status === 'cancelled' ? 'bg-red-50 text-red-600 border-red-100' :
-                'bg-orange-50 text-orange-600 border-orange-100 animate-pulse'
+                order.status === 'delivered' ? 'bg-green-50 text-green-600 border-green-100 dark:bg-green-950/30 dark:text-green-400 dark:border-green-900' :
+                order.status === 'cancelled' ? 'bg-red-50 text-red-600 border-red-100 dark:bg-red-950/30 dark:text-red-400 dark:border-red-900' :
+                'bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-950/30 dark:text-orange-400 dark:border-orange-900 animate-pulse'
               }`}>
                 {order.status.replace('_', ' ')}
               </span>
             </div>
 
             <div className="space-y-4 mb-8">
-              <h1 className="text-3xl sm:text-4xl font-black text-gray-900 leading-tight">Track Your Feast</h1>
-              <p className="text-gray-400 font-bold text-sm tracking-widest">ORDER #{order.id.slice(0, 8).toUpperCase()}</p>
+              <h1 className="text-3xl sm:text-5xl font-black text-gray-900 dark:text-white leading-tight">Order Progress</h1>
+              <p className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] font-mono">#{order.id.toUpperCase()}</p>
             </div>
 
             <CircularTimer status={order.status} />
 
-            <div className="w-full max-w-lg mt-12 space-y-12">
-              <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center gap-8 md:gap-0">
-                {/* Desktop Progress Line */}
-                <div className="hidden md:block absolute left-0 right-0 top-6 h-1 bg-gray-50 -z-0">
-                  <motion.div 
-                    initial={{ width: 0 }}
-                    animate={{ width: `${(currentStepIndex / (steps.length - 1)) * 100}%` }}
-                    className="h-full bg-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.6)]"
-                  />
-                </div>
-
-                {/* Mobile Vertical Line */}
-                <div className="md:hidden absolute left-6 top-6 bottom-6 w-1 bg-gray-50 -z-0">
-                  <motion.div 
-                    initial={{ height: 0 }}
-                    animate={{ height: `${(currentStepIndex / (steps.length - 1)) * 100}%` }}
-                    className="w-full bg-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.6)]"
-                  />
-                </div>
-                
+            <div className="w-full mt-12">
+              <div className="flex flex-col space-y-8">
                 {steps.map((step, index) => {
                   const isCompleted = index <= currentStepIndex;
                   const isCurrent = index === currentStepIndex;
+                  const isLast = index === steps.length - 1;
+                  
                   return (
-                    <div key={step.key} className="relative z-10 flex flex-row md:flex-col items-center gap-6 md:gap-4 w-full md:w-auto">
+                    <div key={step.key} className="flex items-start gap-6 relative group">
+                      {!isLast && (
+                        <div className={`absolute left-7 top-10 w-0.5 h-12 -ml-px ${isCompleted ? 'bg-orange-500' : 'bg-gray-100 dark:bg-gray-800'}`} />
+                      )}
+                      
                       <motion.div 
                         initial={false}
                         animate={{ 
-                          scale: isCurrent ? 1.3 : 1,
-                          backgroundColor: isCompleted ? '#f97316' : '#fff',
-                          borderColor: isCompleted ? '#f97316' : '#f9fafb'
+                          scale: isCurrent ? 1.2 : 1,
+                          backgroundColor: isCompleted ? '#f97316' : 'transparent',
                         }}
-                        className={`w-12 h-12 rounded-2xl border-2 flex items-center justify-center transition-all shadow-2xl ${isCurrent ? 'shadow-orange-200 ring-4 ring-orange-50' : 'shadow-gray-50'}`}
+                        className={`w-14 h-14 rounded-2.5xl border-2 shrink-0 flex items-center justify-center transition-all ${
+                          isCompleted ? 'border-orange-500 shadow-lg shadow-orange-200 dark:shadow-none' : 'border-gray-100 dark:border-gray-800'
+                        }`}
                       >
                         {React.createElement(step.icon as any, { 
-                          className: `w-5 h-5 ${isCompleted ? 'text-white' : 'text-gray-300'}` 
+                          className: `w-6 h-6 ${isCompleted ? 'text-white' : 'text-gray-300 dark:text-gray-700'}` 
                         })}
                       </motion.div>
-                      <div className="flex flex-col items-start md:items-center">
-                        <span className={`text-[10px] font-black uppercase tracking-widest ${isCompleted ? 'text-gray-900' : 'text-gray-300'}`}>
+
+                      <div className="pt-2">
+                        <h4 className={`text-sm font-black uppercase tracking-widest ${isCompleted ? 'text-gray-900 dark:text-white' : 'text-gray-300 dark:text-gray-700'}`}>
                           {step.label}
-                        </span>
-                        {isCurrent && (
-                          <span className="md:hidden text-[8px] font-bold text-orange-500 uppercase tracking-widest mt-1">
-                            In Progress
-                          </span>
-                        )}
+                        </h4>
+                        <p className={`text-[10px] font-bold mt-1 uppercase tracking-widest ${isCurrent ? 'text-orange-500' : 'text-gray-400'}`}>
+                          {isCurrent ? 'Current Status' : isCompleted ? 'Completed' : 'Upcoming'}
+                        </p>
                       </div>
                     </div>
                   );
@@ -157,13 +144,16 @@ const OrderDetails: React.FC = () => {
               </div>
 
               {canCancel && (
-                <div className="pt-8 border-t border-gray-50 flex flex-col items-center gap-4">
-                  <div className="flex items-center gap-2 text-xs font-bold text-gray-400">
-                    <Info className="w-4 h-4" /> Change of heart? You have 5 minutes to cancel.
+                <div className="mt-12 pt-8 border-t border-gray-50 dark:border-gray-800 flex flex-col items-center gap-5">
+                  <div className="flex items-center gap-3 px-6 py-3 bg-gray-50 dark:bg-gray-800 rounded-2xl">
+                    <Info className="w-5 h-5 text-blue-500" /> 
+                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                      Change of heart? You have 5 minutes to cancel.
+                    </span>
                   </div>
                   <button 
                     onClick={handleCancelOrder}
-                    className="w-full sm:w-auto px-10 py-4 rounded-2xl bg-red-50 text-red-600 font-bold hover:bg-red-100 transition-all border border-red-100"
+                    className="w-full sm:w-auto px-12 py-5 rounded-3xl bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 font-black text-sm uppercase tracking-widest hover:bg-red-100 transition-all active:scale-95 border border-red-100 dark:border-red-900"
                   >
                     Cancel Order
                   </button>
@@ -173,30 +163,34 @@ const OrderDetails: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-gray-50 space-y-6">
-              <h3 className="text-lg font-black text-gray-900 flex items-center gap-3">
-                <div className="bg-orange-50 p-2 rounded-xl"><MapPin className="w-5 h-5 text-orange-500" /></div>
-                Delivery Address
-              </h3>
+            <div className="bg-white dark:bg-gray-900 p-8 sm:p-10 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-xl shadow-gray-50 dark:shadow-none space-y-6">
+              <div className="flex items-center gap-4">
+                <div className="bg-orange-50 dark:bg-orange-950/30 p-3 rounded-2xl">
+                  <MapPin className="w-6 h-6 text-orange-500" />
+                </div>
+                <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-widest">Address</h3>
+              </div>
               <div className="space-y-4">
-                <p className="text-gray-500 font-bold text-sm uppercase tracking-widest">{order.userName}</p>
-                <p className="text-gray-700 font-medium leading-relaxed bg-gray-50 p-6 rounded-2xl border border-gray-100">
-                  {order.address}
-                </p>
-                <p className="text-gray-400 font-bold text-xs">{order.userPhone}</p>
+                <p className="text-gray-400 dark:text-gray-500 font-black text-xs uppercase tracking-[0.2em]">{order.userName}</p>
+                <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-[2rem] border border-gray-100 dark:border-gray-800">
+                  <p className="text-gray-700 dark:text-gray-300 font-bold leading-relaxed">{order.address}</p>
+                </div>
+                <p className="text-gray-400 font-bold text-[10px] font-mono tracking-widest">{order.userPhone}</p>
               </div>
             </div>
 
-            <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-gray-50 space-y-6">
-              <h3 className="text-lg font-black text-gray-900 flex items-center gap-3">
-                <div className="bg-green-50 p-2 rounded-xl"><CreditCard className="w-5 h-5 text-green-500" /></div>
-                Payment Method
-              </h3>
-              <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100 space-y-4">
+            <div className="bg-white dark:bg-gray-900 p-8 sm:p-10 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-xl shadow-gray-50 dark:shadow-none space-y-6">
+              <div className="flex items-center gap-4">
+                <div className="bg-green-50 dark:bg-green-950/30 p-3 rounded-2xl">
+                  <CreditCard className="w-6 h-6 text-green-500" />
+                </div>
+                <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-widest text-sm">Payment</h3>
+              </div>
+              <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-[2rem] border border-gray-100 dark:border-gray-800 space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm font-bold uppercase tracking-[0.2em] text-gray-400">{order.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Payment'}</span>
-                  <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${
-                    order.paymentStatus === 'paid' ? 'bg-green-100 text-green-700 border-green-200' : 'bg-orange-100 text-orange-700 border-orange-200'
+                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{order.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Payment'}</span>
+                  <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${
+                    order.paymentStatus === 'paid' ? 'bg-green-50 text-green-600 border-green-100 dark:bg-green-950/30 dark:text-green-400' : 'bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-950/30 dark:text-orange-400'
                   }`}>
                     {order.paymentStatus}
                   </span>
@@ -208,45 +202,50 @@ const OrderDetails: React.FC = () => {
 
         {/* Sidebar Summary */}
         <div className="space-y-8">
-          <div className="bg-gray-900 text-white p-8 rounded-[2.5rem] shadow-2xl shadow-gray-200 space-y-8 h-fit">
-            <h3 className="text-xl font-bold flex items-center gap-3">
-              <ShoppingBag className="w-6 h-6 text-orange-500" /> Order Summary
-            </h3>
+          <div className="bg-gray-900 dark:bg-black text-white p-8 sm:p-10 rounded-[3rem] shadow-2xl shadow-gray-200 dark:shadow-none space-y-8 sticky top-24">
+            <div className="flex items-center gap-4">
+              <div className="bg-orange-500 p-3 rounded-2xl">
+                <ShoppingBag className="w-6 h-6 text-white" />
+              </div>
+              <h3 className="text-2xl font-black uppercase tracking-widest">Review</h3>
+            </div>
+            
             <div className="space-y-6">
               {order.items.map((item, i) => (
-                <div key={i} className="flex gap-4 items-center">
-                  <div className="relative">
+                <div key={i} className="flex gap-5 items-center group">
+                  <div className="relative shrink-0">
                     <img 
                       src={item.image} 
                       alt={item.title} 
-                      className="w-16 h-16 rounded-2xl object-cover ring-2 ring-gray-800" 
+                      className="w-16 h-16 rounded-2xl object-cover ring-2 ring-gray-800 group-hover:ring-orange-500 transition-all" 
                       referrerPolicy="no-referrer"
                     />
-                    <span className="absolute -top-2 -right-2 bg-orange-500 text-white w-6 h-6 rounded-full text-[10px] font-black flex items-center justify-center border-2 border-gray-900">
+                    <span className="absolute -top-3 -right-3 bg-orange-500 text-white w-7 h-7 rounded-full text-[10px] font-black flex items-center justify-center border-4 border-gray-900">
                       {item.quantity}
                     </span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-bold text-sm truncate">{item.title}</h4>
-                    <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest">${item.price.toFixed(2)} / unit</p>
+                    <h4 className="font-black text-sm truncate uppercase tracking-widest">{item.title}</h4>
+                    <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mt-1">{formatPrice(item.price)} / unit</p>
                   </div>
-                  <p className="font-black text-sm text-orange-400">${(item.price * item.quantity).toFixed(2)}</p>
+                  <p className="font-black text-sm text-orange-400 tabular-nums">{formatPrice(item.price * item.quantity)}</p>
                 </div>
               ))}
             </div>
 
             <div className="pt-8 border-t border-gray-800 space-y-4">
-              <div className="flex justify-between text-gray-400 font-bold text-xs uppercase tracking-widest">
-                <span>Subtotal</span>
-                <span>${order.total.toFixed(2)}</span>
+              <div className="flex justify-between text-gray-500 font-bold text-[10px] uppercase tracking-[0.2em]">
+                <span>Food Subtotal</span>
+                <span className="tabular-nums">{formatPrice(order.total)}</span>
               </div>
-              <div className="flex justify-between text-gray-400 font-bold text-xs uppercase tracking-widest">
-                <span>Delivery</span>
-                <span className="text-green-500">FREE</span>
+              <div className="flex justify-between text-gray-500 font-bold text-[10px] uppercase tracking-[0.2em]">
+                <span>Shipping</span>
+                <span className="text-green-500">FREE delivery</span>
               </div>
-              <div className="flex justify-between text-2xl font-black text-white pt-2">
-                <span>Total</span>
-                <span className="text-orange-500">${order.total.toFixed(2)}</span>
+              
+              <div className="pt-4 flex justify-between items-end">
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Final Amount</span>
+                <span className="text-4xl font-black text-white tabular-nums tracking-tighter">{formatPrice(order.total)}</span>
               </div>
             </div>
           </div>
