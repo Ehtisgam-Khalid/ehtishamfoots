@@ -16,11 +16,18 @@ export const Header: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    api.get('/categories').then(res => {
-      if (Array.isArray(res.data)) {
-        setCategories(res.data);
-      }
-    }).catch(() => {});
+    const fetchCategories = () => {
+      api.get('/categories').then(res => {
+        if (Array.isArray(res.data)) {
+          setCategories(res.data);
+        }
+      }).catch(() => {});
+    };
+
+    fetchCategories();
+
+    window.addEventListener('categories_updated', fetchCategories);
+    return () => window.removeEventListener('categories_updated', fetchCategories);
   }, []);
 
   const handleLogout = () => {

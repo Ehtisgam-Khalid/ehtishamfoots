@@ -274,41 +274,53 @@ const Cart: React.FC = () => {
       </div>
 
       <div className="space-y-8">
-        <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-2xl shadow-gray-100 dark:shadow-none p-6 sm:p-10 space-y-8 sticky top-24">
-          <h2 className="text-3xl font-black text-gray-900 dark:text-white">Checkout</h2>
+        <div className="bg-white dark:bg-gray-900 rounded-[3.5rem] border border-gray-100 dark:border-gray-800 shadow-2xl shadow-gray-200/50 dark:shadow-none p-8 sm:p-12 space-y-10 sticky top-24">
+          <div className="space-y-2">
+            <h2 className="text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Checkout</h2>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1">Complete your orders</p>
+          </div>
           
-          <div className="space-y-6">
+          <div className="space-y-8">
             <div className="space-y-4">
               <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 pl-1">Delivery Speed</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <button 
                   onClick={() => setDeliveryType('standard')}
-                  className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-1 ${
+                  className={`p-5 rounded-3xl border-2 transition-all flex flex-col items-center gap-2 group ${
                     deliveryType === 'standard' 
-                    ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/20' 
-                    : 'border-transparent bg-gray-50 dark:bg-gray-800'
+                    ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/20 ring-4 ring-orange-500/10' 
+                    : 'border-transparent bg-gray-50 dark:bg-gray-800/50'
                   }`}
                 >
-                  <span className="font-black text-sm text-gray-900 dark:text-white">Standard</span>
-                  <span className="text-[10px] font-bold text-gray-400">Regular Speed</span>
+                  <Truck className={`w-6 h-6 ${deliveryType === 'standard' ? 'text-orange-500' : 'text-gray-400'}`} />
+                  <div className="text-center">
+                    <span className="font-black text-sm text-gray-900 dark:text-white block">Standard</span>
+                    <span className="text-[10px] font-bold text-gray-400">30-45 mins</span>
+                  </div>
                 </button>
                 <button 
                   onClick={() => setDeliveryType('express')}
-                  className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-1 ${
+                  className={`p-5 rounded-3xl border-2 transition-all flex flex-col items-center gap-2 group ${
                     deliveryType === 'express' 
-                    ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/20' 
-                    : 'border-transparent bg-gray-50 dark:bg-gray-800'
+                    ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/20 ring-4 ring-orange-500/10' 
+                    : 'border-transparent bg-gray-50 dark:bg-gray-800/50'
                   }`}
                 >
-                  <span className="font-black text-sm text-gray-900 dark:text-white">Express ⚡</span>
-                  <span className="text-[10px] font-bold text-gray-400">Extra Rs. 150</span>
+                  <div className="relative">
+                    <Truck className={`w-6 h-6 ${deliveryType === 'express' ? 'text-orange-500' : 'text-gray-400'}`} />
+                    <span className="absolute -top-1 -right-1 text-xs">⚡</span>
+                  </div>
+                  <div className="text-center">
+                    <span className="font-black text-sm text-gray-900 dark:text-white block">Express</span>
+                    <span className="text-[10px] font-bold text-gray-400">+Rs. 150 (15m)</span>
+                  </div>
                 </button>
               </div>
             </div>
 
             <div className="space-y-4">
               <div className="flex justify-between items-center mb-1">
-                <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Delivery Address</label>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Delivery Address</label>
                 <button 
                   type="button"
                   onClick={handleUseMyLocation}
@@ -316,88 +328,89 @@ const Cart: React.FC = () => {
                   className="text-[10px] font-black uppercase tracking-widest text-orange-500 hover:text-white hover:bg-orange-500 bg-orange-50 dark:bg-orange-950/30 px-5 py-2.5 rounded-2xl transition-all disabled:opacity-50 flex items-center gap-2 border border-orange-100 dark:border-orange-900 shadow-sm active:scale-95"
                 >
                   {locating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MapPin className="w-3.5 h-3.5" />}
-                  {locating ? 'Searching...' : 'Current Location 📍'}
+                  {locating ? 'Searching...' : 'Locate Me 📍'}
                 </button>
               </div>
               <textarea 
-                placeholder="Ex: House #123, Road 45, Street 6..."
+                placeholder="Where should we bring your food?"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                className="w-full p-6 bg-gray-50 dark:bg-[#0a0a0a] border-2 border-transparent focus:border-orange-500 dark:text-white rounded-[2.5rem] outline-none transition-all font-bold text-sm min-h-[140px] resize-none shadow-inner"
+                className="w-full p-6 bg-gray-50 dark:bg-[#0a0a0a] border-2 border-transparent focus:border-orange-500 dark:text-white rounded-[2.5rem] outline-none transition-all font-bold text-sm min-h-[120px] resize-none shadow-inner"
               />
             </div>
 
-            <div className="space-y-3">
-              <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Payment Method</label>
+            <div className="space-y-4">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Payment Method</label>
               <div className="grid grid-cols-2 gap-4">
                 <button 
                   onClick={() => setPaymentMethod('cod')}
-                  className={`flex flex-col items-center gap-3 p-5 rounded-[2rem] border-2 transition-all ${
+                  className={`flex flex-col items-center gap-3 p-6 rounded-[2.5rem] border-2 transition-all group ${
                     paymentMethod === 'cod' 
-                    ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400' 
-                    : 'border-gray-50 dark:border-gray-800 text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+                    ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/30' 
+                    : 'border-transparent bg-gray-50 dark:bg-gray-800/50'
                   }`}
                 >
-                  <Truck className="w-7 h-7" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">COD</span>
+                  <div className={`p-4 rounded-2xl transition-all ${paymentMethod === 'cod' ? 'bg-orange-500 text-white shadow-lg' : 'bg-white dark:bg-gray-700 text-gray-400'}`}>
+                    <Truck className="w-6 h-6 " />
+                  </div>
+                  <span className={`text-[10px] font-black uppercase tracking-widest ${paymentMethod === 'cod' ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400'}`}>Cash</span>
                 </button>
                 <button 
                   onClick={() => setPaymentMethod('online')}
-                  className={`flex flex-col items-center gap-3 p-5 rounded-[2rem] border-2 transition-all ${
+                  className={`flex flex-col items-center gap-3 p-6 rounded-[2.5rem] border-2 transition-all group ${
                     paymentMethod === 'online' 
-                    ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400' 
-                    : 'border-gray-50 dark:border-gray-800 text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+                    ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/30' 
+                    : 'border-transparent bg-gray-50 dark:bg-gray-800/50'
                   }`}
                 >
-                  <CreditCard className="w-7 h-7" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Card</span>
+                  <div className={`p-4 rounded-2xl transition-all ${paymentMethod === 'online' ? 'bg-orange-500 text-white shadow-lg' : 'bg-white dark:bg-gray-700 text-gray-400'}`}>
+                    <CreditCard className="w-6 h-6" />
+                  </div>
+                  <span className={`text-[10px] font-black uppercase tracking-widest ${paymentMethod === 'online' ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400'}`}>Card</span>
                 </button>
               </div>
             </div>
           </div>
 
-          <div className="p-6 bg-gray-50 dark:bg-gray-800/50 rounded-[2.5rem] space-y-4">
-            <div className="flex justify-between text-gray-500 dark:text-gray-400 font-bold text-sm uppercase tracking-widest">
-              <span>Subtotal</span>
-              <span className="tabular-nums">{formatPrice(total)}</span>
-            </div>
-            {discount > 0 && (
-              <motion.div 
-                initial={{ opacity: 0, x: -10 }} 
-                animate={{ opacity: 1, x: 0 }}
-                className="flex justify-between text-green-500 font-black text-sm uppercase tracking-widest bg-green-50 dark:bg-green-950/30 p-3 rounded-xl border border-green-100 dark:border-green-900"
-              >
-                <div className="flex items-center gap-2"><Ticket className="w-4 h-4" /> Coupon Applied</div>
-                <span className="tabular-nums">-{formatPrice(discount)}</span>
-              </motion.div>
-            )}
-            {total < 600 && (
-              <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest italic text-center border-t border-gray-100 dark:border-gray-700 pt-3">
-                Order over Rs. 600 for a Rs. 50 Discount!
+          <div className="p-8 bg-gray-900 dark:bg-black rounded-[3rem] space-y-6 shadow-2xl">
+            <div className="space-y-4">
+              <div className="flex justify-between text-gray-500 font-bold text-xs uppercase tracking-widest">
+                <span>Subtotal</span>
+                <span className="tabular-nums text-white">{formatPrice(total)}</span>
               </div>
-            )}
-            <div className="flex justify-between text-gray-500 dark:text-gray-400 font-bold text-sm uppercase tracking-widest border-t border-gray-100 dark:border-gray-700 pt-4">
-              <span>Delivery</span>
-              <span className={deliveryFee > 0 ? "text-gray-900 dark:text-white tabular-nums" : "text-green-500"}>
-                {deliveryFee > 0 ? formatPrice(deliveryFee) : 'FREE'}
-              </span>
+              
+              {discount > 0 && (
+                <div className="flex justify-between items-center text-green-500 font-black text-xs uppercase tracking-widest py-3 border-y border-white/5">
+                  <div className="flex items-center gap-2"><Ticket className="w-4 h-4 shadow-sm" /> Discount Applied</div>
+                  <span className="tabular-nums">-{formatPrice(discount)}</span>
+                </div>
+              )}
+
+              <div className="flex justify-between text-gray-500 font-bold text-xs uppercase tracking-widest">
+                <span>Delivery</span>
+                <span className={deliveryFee > 0 ? "text-white tabular-nums" : "text-green-500 font-black"}>
+                  {deliveryFee > 0 ? formatPrice(deliveryFee) : 'FREE'}
+                </span>
+              </div>
             </div>
-            <div className="flex justify-between text-3xl font-black text-gray-900 dark:text-white pt-4">
-              <span>Total</span>
-              <span className="text-orange-500 tabular-nums">{formatPrice(finalTotal)}</span>
+
+            <div className="pt-4 flex justify-between items-end border-t border-white/10">
+              <span className="text-xs font-black text-gray-500 uppercase tracking-widest mb-1">Total Amount</span>
+              <span className="text-4xl font-black text-orange-500 tabular-nums tracking-tighter">{formatPrice(finalTotal)}</span>
             </div>
           </div>
 
           <button 
             onClick={handleCheckout}
             disabled={loading}
-            className="w-full bg-orange-500 text-white py-6 rounded-[2rem] font-black text-xl flex items-center justify-center gap-3 hover:bg-orange-600 transition-all shadow-xl shadow-orange-100 dark:shadow-none active:scale-95 disabled:opacity-50 group"
+            className="w-full bg-orange-500 text-white p-7 rounded-[2.5rem] font-black text-xl flex items-center justify-center gap-4 hover:bg-orange-600 transition-all shadow-2xl shadow-orange-500/20 active:scale-95 disabled:opacity-50 group overflow-hidden relative"
           >
             {loading ? (
               <Loader2 className="w-8 h-8 animate-spin" />
             ) : (
               <>
-                Confirm Order <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
+                <div className="absolute top-0 left-0 w-2 h-full bg-white/20 -skew-x-12 -translate-x-4 group-hover:translate-x-80 transition-transform duration-700" />
+                Place Order <ArrowRight className="w-7 h-7 group-hover:translate-x-1 transition-transform" />
               </>
             )}
           </button>

@@ -12,6 +12,7 @@ import { io } from 'socket.io-client';
 
 const AdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'stats' | 'products' | 'orders' | 'categories'>('stats');
+  const [statsFilter, setStatsFilter] = useState<'today' | 'week' | 'month' | 'year' | 'all'>('all');
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -20,6 +21,8 @@ const AdminDashboard: React.FC = () => {
   // New product form
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [newProduct, setNewProduct] = useState<Partial<Product>>({
     title: '',
@@ -148,6 +151,7 @@ const AdminDashboard: React.FC = () => {
       await api.delete(`/categories/${categoryId.toString()}`);
       toast.success('Category deleted successfully');
       await fetchData();
+      window.dispatchEvent(new Event('categories_updated'));
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Category delete failed');
     }
@@ -174,6 +178,7 @@ const AdminDashboard: React.FC = () => {
       setShowAddCategoryModal(false);
       setNewCategory({ name: '', icon: 'Package' });
       fetchData();
+      window.dispatchEvent(new Event('categories_updated'));
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to add category');
     }
@@ -188,29 +193,78 @@ const AdminDashboard: React.FC = () => {
       setShowEditCategoryModal(false);
       setEditingCategory(null);
       fetchData();
+      window.dispatchEvent(new Event('categories_updated'));
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Update failed');
     }
   };
 
+  const filteredOrders = orders.filter(order => {
+    if (statsFilter === 'all') return true;
+    const orderDate = new Date(order.createdAt);
+    const now = new Date();
+    
+    if (statsFilter === 'today') {
+      return orderDate.toDateString() === now.toDateString();
+    }
+    
+    if (statsFilter === 'week') {
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(now.getDate() - 7);
+      return orderDate >= oneWeekAgo;
+    }
+    
+    if (statsFilter === 'month') {
+      const oneMonthAgo = new Date();
+      oneMonthAgo.setMonth(now.getMonth() - 1);
+      return orderDate >= oneMonthAgo;
+    }
+    
+    if (statsFilter === 'year') {
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(now.getFullYear() - 1);
+      return orderDate >= oneYearAgo;
+    }
+    
+    return true;
+  });
+
   const StatsView = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      {[
-        { label: 'Total Revenue', value: formatPrice(orders.filter(o => o.status !== 'cancelled').reduce((acc, o) => acc + o.total, 0)), icon: CreditCard, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-950/30' },
-        { label: 'Active Orders', value: orders.filter(o => !['delivered', 'cancelled'].includes(o.status)).length, icon: ShoppingBag, color: 'text-orange-600', bg: 'bg-orange-50 dark:bg-orange-950/30' },
-        { label: 'Total Products', value: products.length, icon: Package, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-950/30' },
-        { label: 'Completed Orders', value: orders.filter(o => o.status === 'delivered').length, icon: Check, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-950/30' },
-      ].map((stat, i) => (
-        <div key={i} className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm flex items-center gap-4">
-          <div className={`${stat.bg} ${stat.color} p-4 rounded-2xl`}>
-            {React.createElement(stat.icon as any, { className: 'w-6 h-6' })}
+    <div className="space-y-8">
+      <div className="flex items-center justify-between bg-white dark:bg-gray-900 p-4 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-x-auto gap-2">
+        {(['today', 'week', 'month', 'year', 'all'] as const).map((filter) => (
+          <button
+            key={filter}
+            onClick={() => setStatsFilter(filter)}
+            className={`px-6 py-3 rounded-[1.25rem] font-black uppercase tracking-widest text-[10px] transition-all whitespace-nowrap ${
+              statsFilter === filter 
+              ? 'bg-orange-500 text-white shadow-lg shadow-orange-100 dark:shadow-none' 
+              : 'text-gray-400 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            {filter === 'all' ? 'Lifetime' : filter}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[
+          { label: 'Total Revenue', value: formatPrice(filteredOrders.filter(o => o.status !== 'cancelled').reduce((acc, o) => acc + o.total, 0)), icon: CreditCard, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-950/30' },
+          { label: 'Active Orders', value: filteredOrders.filter(o => !['delivered', 'cancelled'].includes(o.status)).length, icon: ShoppingBag, color: 'text-orange-600', bg: 'bg-orange-50 dark:bg-orange-950/30' },
+          { label: 'Total Products', value: products.length, icon: Package, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-950/30' },
+          { label: 'Completed Orders', value: filteredOrders.filter(o => o.status === 'delivered').length, icon: Check, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-950/30' },
+        ].map((stat, i) => (
+          <div key={i} className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm flex items-center gap-4">
+            <div className={`${stat.bg} ${stat.color} p-4 rounded-2xl`}>
+              {React.createElement(stat.icon as any, { className: 'w-6 h-6' })}
+            </div>
+            <div>
+              <p className="text-gray-400 dark:text-gray-500 text-xs font-bold uppercase tracking-widest">{stat.label}</p>
+              <p className="text-2xl font-black text-gray-900 dark:text-white tabular-nums">{stat.value}</p>
+            </div>
           </div>
-          <div>
-            <p className="text-gray-400 dark:text-gray-500 text-xs font-bold uppercase tracking-widest">{stat.label}</p>
-            <p className="text-2xl font-black text-gray-900 dark:text-white tabular-nums">{stat.value}</p>
-          </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 
@@ -310,6 +364,16 @@ const AdminDashboard: React.FC = () => {
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
+                              <button 
+                                onClick={() => {
+                                  setViewingOrder(order);
+                                  setShowOrderModal(true);
+                                }}
+                                className="p-2 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-xl transition-all"
+                                title="View Details"
+                              >
+                                <LayoutDashboard className="w-5 h-5" />
+                              </button>
                               <select 
                                 value={order.status}
                                 onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)}
@@ -361,36 +425,47 @@ const AdminDashboard: React.FC = () => {
                         <p className="text-sm font-bold text-gray-600 dark:text-gray-400 leading-relaxed">{order.address}</p>
                       </div>
 
-                      <div className="flex flex-col gap-6">
-                        <div>
-                          <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-2">Order Summary</p>
-                          <p className="font-black text-2xl text-gray-900 dark:text-white tabular-nums">{formatPrice(order.total)}</p>
-                          <p className="text-xs font-bold text-orange-500 mt-1">{order.items.length} items ordered</p>
-                        </div>
-                        <div className="space-y-3">
-                          <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Update Progress</p>
-                          <div className="flex items-center gap-3">
-                            <select 
-                              value={order.status}
-                              onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)}
-                              className="flex-1 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl px-5 py-4 text-sm font-black outline-none focus:ring-2 focus:ring-orange-500 dark:text-white"
-                            >
-                              <option value="pending">Pending</option>
-                              <option value="accepted">Accepted</option>
-                              <option value="preparing">Preparing</option>
-                              <option value="out_for_delivery">Out for delivery</option>
-                              <option value="delivered">Delivered</option>
-                              <option value="cancelled">Cancelled</option>
-                            </select>
-                            <button 
-                              onClick={() => handleDeleteOrder(order.id)}
-                              className="p-4 bg-red-50 dark:bg-red-950/50 text-red-500 rounded-2xl hover:bg-red-100 transition-all shadow-sm"
-                            >
-                              <Trash2 className="w-6 h-6" />
-                            </button>
+                          <div className="flex flex-col gap-6">
+                            <div className="flex justify-between items-center bg-gray-50 dark:bg-gray-800/50 p-4 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-inner">
+                              <div>
+                                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Total Amount</p>
+                                <p className="font-black text-2xl text-gray-900 dark:text-white tabular-nums">{formatPrice(order.total)}</p>
+                                <p className="text-xs font-bold text-orange-500 mt-0.5">{order.items.length} items ordered</p>
+                              </div>
+                              <button 
+                                onClick={() => {
+                                  setViewingOrder(order);
+                                  setShowOrderModal(true);
+                                }}
+                                className="p-4 bg-indigo-500 text-white rounded-2.5xl hover:bg-indigo-600 transition-all shadow-lg shadow-indigo-500/20 active:scale-95 shrink-0"
+                              >
+                                <LayoutDashboard className="w-6 h-6" />
+                              </button>
+                            </div>
+                            <div className="space-y-3">
+                              <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest pl-1">Update Status</p>
+                              <div className="flex items-center gap-3">
+                                <select 
+                                  value={order.status}
+                                  onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value)}
+                                  className="flex-1 bg-white dark:bg-gray-800 border-2 border-gray-100 dark:border-gray-700 rounded-2xl px-5 py-4 text-sm font-black outline-none focus:border-orange-500 dark:text-white appearance-none"
+                                >
+                                  <option value="pending">Pending</option>
+                                  <option value="accepted">Accepted</option>
+                                  <option value="preparing">Preparing</option>
+                                  <option value="out_for_delivery">Out for delivery</option>
+                                  <option value="delivered">Delivered</option>
+                                  <option value="cancelled">Cancelled</option>
+                                </select>
+                                <button 
+                                  onClick={() => handleDeleteOrder(order.id)}
+                                  className="p-4 bg-red-50 dark:bg-red-950/50 text-red-500 rounded-2xl hover:bg-red-500 hover:text-white transition-all shadow-sm border border-red-100 dark:border-red-900"
+                                >
+                                  <Trash2 className="w-6 h-6" />
+                                </button>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
                     </div>
                   ))}
                 </div>
@@ -441,31 +516,48 @@ const AdminDashboard: React.FC = () => {
             )}
 
             {activeTab === 'categories' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {categories.map(category => (
-                  <div key={category.id} className="bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-sm flex justify-between items-center group hover:border-orange-500/30 transition-all">
-                    <div className="flex items-center gap-5">
-                      <div className="bg-orange-50 dark:bg-orange-950/30 text-orange-500 p-4 rounded-2xl shadow-sm">
-                        <Package className="w-6 h-6" />
+                  <div key={category.id} className="relative bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden group hover:shadow-xl hover:shadow-orange-500/5 transition-all duration-500">
+                    {/* Background Accent */}
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700" />
+                    
+                    <div className="relative space-y-6">
+                      <div className="flex justify-between items-start">
+                        <div className="bg-orange-500 text-white p-4 rounded-3xl shadow-lg shadow-orange-500/20">
+                          {/* Dynamically render Lucide icon if possible, else default */}
+                          <Package className="w-8 h-8" />
+                        </div>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => {
+                              setEditingCategory(category);
+                              setShowEditCategoryModal(true);
+                            }}
+                            className="p-3 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-2xl hover:bg-indigo-500 hover:text-white transition-all shadow-sm"
+                          >
+                            <Edit3 className="w-5 h-5" />
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteCategory(category.id)}
+                            className="p-3 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 rounded-2xl hover:bg-red-500 hover:text-white transition-all shadow-sm"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        </div>
                       </div>
-                      <p className="font-black text-gray-900 dark:text-white uppercase tracking-widest text-sm">{category.name}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={() => {
-                          setEditingCategory(category);
-                          setShowEditCategoryModal(true);
-                        }}
-                        className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30 rounded-xl transition-all"
-                      >
-                        <Edit3 className="w-6 h-6" />
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteCategory(category.id)}
-                        className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition-all"
-                      >
-                        <Trash2 className="w-6 h-6" />
-                      </button>
+
+                      <div className="space-y-1 pt-4">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Category Label</p>
+                        <h3 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-widest truncate">{category.name}</h3>
+                      </div>
+
+                      <div className="pt-4 border-t border-gray-50 dark:border-gray-800 flex justify-between items-center">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Active Items</span>
+                        <span className="px-4 py-1.5 bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400 rounded-full text-xs font-black ring-1 ring-orange-100 dark:ring-orange-900">
+                          {products.filter(p => p.categoryId === category.id).length}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -474,6 +566,95 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Order Details Modal */}
+      {showOrderModal && viewingOrder && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            className="bg-white dark:bg-gray-900 rounded-[3rem] p-8 max-w-3xl w-full shadow-3xl space-y-8 max-h-[90vh] overflow-y-auto border border-white/20 dark:border-gray-800"
+          >
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Order Details</h3>
+                <p className="text-xs font-black text-orange-500 uppercase tracking-widest font-mono mt-1">Order ID: #{viewingOrder.id.toUpperCase()}</p>
+              </div>
+              <button onClick={() => setShowOrderModal(false)} className="p-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-all active:rotate-90">
+                <X className="w-8 h-8 dark:text-white" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-6">
+                <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-[2rem] border border-gray-100 dark:border-gray-800 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <User className="w-5 h-5 text-gray-400" />
+                    <div>
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Customer</p>
+                      <p className="font-black text-gray-900 dark:text-white">{(viewingOrder as any).userName || 'N/A'}</p>
+                    </div>
+                  </div>
+                  <div className="pt-4 border-t border-gray-100 dark:border-gray-700 flex items-center gap-3">
+                    <ShoppingBag className="w-5 h-5 text-gray-400" />
+                    <div>
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Contact</p>
+                      <p className="font-bold text-gray-900 dark:text-white font-mono">{(viewingOrder as any).userPhone || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-[2rem] border border-gray-100 dark:border-gray-800 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <MapPin className="w-5 h-5 text-gray-400" />
+                    <div className="flex-1">
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Delivery Address</p>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white leading-relaxed">{viewingOrder.address}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="bg-gray-900 dark:bg-black text-white p-6 rounded-[2rem] space-y-4">
+                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4">Cart Summary</p>
+                  <div className="max-h-48 overflow-y-auto space-y-3 pr-2 scrollbar-hide">
+                    {viewingOrder.items.map((item, i) => (
+                      <div key={i} className="flex justify-between items-center text-sm">
+                        <div className="flex items-center gap-3">
+                          <span className="font-black text-orange-500">{item.quantity}x</span>
+                          <span className="font-bold line-clamp-1">{item.title}</span>
+                        </div>
+                        <span className="font-black tabular-nums">{formatPrice(item.price * item.quantity)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="pt-4 border-t border-gray-800 space-y-2">
+                    <div className="flex justify-between text-xs text-gray-400 font-bold">
+                      <span>Subtotal</span>
+                      <span className="tabular-nums">{formatPrice(viewingOrder.total - (viewingOrder.deliveryFee || 0) + (viewingOrder.discount || 0))}</span>
+                    </div>
+                    {viewingOrder.discount && (
+                      <div className="flex justify-between text-xs text-green-500 font-bold">
+                        <span>Discount</span>
+                        <span className="tabular-nums">-{formatPrice(viewingOrder.discount)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-xs text-blue-400 font-bold">
+                      <span>Delivery Fee</span>
+                      <span className="tabular-nums">{formatPrice(viewingOrder.deliveryFee || 0)}</span>
+                    </div>
+                    <div className="flex justify-between text-xl font-black pt-2">
+                      <span>Total</span>
+                      <span className="text-orange-500 tabular-nums">{formatPrice(viewingOrder.total)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* Modals with Dark Mode Support */}
       {showEditModal && editingProduct && (
