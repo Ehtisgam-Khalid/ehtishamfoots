@@ -11,49 +11,6 @@ import { formatPrice } from '../lib/utils';
 import { io } from 'socket.io-client';
 import { useAuth } from '../contexts/AuthContext';
 import { ReviewModal } from '../components/ReviewModal';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
-import L from 'leaflet';
-
-// Fix for default marker icons in Leaflet with Vite
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerIconRetina from 'leaflet/dist/images/marker-icon-2x.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-
-const DefaultIcon = L.icon({
-  iconUrl: markerIcon,
-  iconRetinaUrl: markerIconRetina,
-  shadowUrl: markerShadow,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-});
-
-L.Marker.prototype.options.icon = DefaultIcon;
-
-const DriverIcon = L.divIcon({
-  className: 'custom-driver-icon',
-  html: `<div class="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center border-4 border-white shadow-xl animate-bounce">
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-truck"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-5h-7v6h2"/><path d="M13 9h7"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>
-  </div>`,
-  iconSize: [40, 40],
-  iconAnchor: [20, 20],
-});
-
-const DestinationIcon = L.divIcon({
-  className: 'custom-user-icon',
-  html: `<div class="w-8 h-8 bg-black rounded-full flex items-center justify-center border-4 border-white shadow-xl">
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-map-pin"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
-  </div>`,
-  iconSize: [32, 32],
-  iconAnchor: [16, 16],
-});
-
-const SetMapCenter = ({ center }: { center: [number, number] }) => {
-  const map = useMap();
-  useEffect(() => {
-    map.setView(center, map.getZoom());
-  }, [center, map]);
-  return null;
-};
 
 const steps = [
   { key: 'pending', label: 'Order Placed', icon: Clock, color: 'text-orange-500', bg: 'bg-orange-50' },
@@ -72,30 +29,10 @@ const OrderDetails: React.FC = () => {
   const [now, setNow] = useState(new Date());
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [hasReviewed, setHasReviewed] = useState(false);
-  const [driverPos, setDriverPos] = useState<[number, number]>([24.8607, 67.0011]); // Default Karachi
-  const [destPos] = useState<[number, number]>([24.8757, 67.0251]); // Destination
-  const [mapReady, setMapReady] = useState(false);
-
-  useEffect(() => {
-    if (order?.status === 'out_for_delivery') {
-      const interval = setInterval(() => {
-        setDriverPos(prev => {
-          const latDiff = (destPos[0] - prev[0]) * 0.05;
-          const lngDiff = (destPos[1] - prev[1]) * 0.05;
-          return [prev[0] + latDiff, prev[1] + lngDiff];
-        });
-      }, 3000);
-      return () => clearInterval(interval);
-    }
-  }, [order?.status, destPos]);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 10000);
-    const mapDelay = setTimeout(() => setMapReady(true), 500);
-    return () => {
-      clearInterval(timer);
-      clearTimeout(mapDelay);
-    };
+    return () => clearInterval(timer);
   }, []);
 
   const fetchOrder = async () => {
@@ -165,80 +102,6 @@ const OrderDetails: React.FC = () => {
           Placed on {format(new Date(order.createdAt), 'MMM dd, p')}
         </span>
       </div>
-
-      {/* Real-time Tracking Map */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative h-[400px] w-full rounded-[2.5rem] overflow-hidden border-8 border-white dark:border-gray-900 shadow-2xl z-0"
-      >
-        {mapReady ? (
-          <MapContainer 
-            center={driverPos} 
-            zoom={13} 
-            className="h-full w-full"
-            zoomControl={false}
-          >
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            
-            {/* User Destination Marker */}
-            <Marker position={destPos} icon={DestinationIcon}>
-              <Popup>
-                <div className="text-center font-bold">
-                  <p className="text-[10px] uppercase text-gray-400">Delivery Address</p>
-                  <p className="text-sm">{order.address}</p>
-                </div>
-              </Popup>
-            </Marker>
-
-            {/* Driver Marker */}
-            <Marker position={driverPos} icon={DriverIcon}>
-              <Popup>
-                <div className="text-center font-bold">
-                  <p className="text-[10px] uppercase text-orange-500">Live Driver Status</p>
-                  <p className="text-sm">On the way to your door!</p>
-                </div>
-              </Popup>
-            </Marker>
-
-            {/* Path between driver and destination */}
-            <Polyline 
-              positions={[driverPos, destPos]} 
-              color="#f97316" 
-              weight={4} 
-              dashArray="8, 12" 
-              opacity={0.6}
-            />
-
-            <SetMapCenter center={driverPos} />
-          </MapContainer>
-        ) : (
-          <div className="w-full h-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
-            <div className="text-center space-y-4">
-              <Loader2 className="w-10 h-10 text-orange-500 animate-spin mx-auto" />
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Initalizing GPS Tracking...</p>
-            </div>
-          </div>
-        )}
-
-        {/* Map Footer Info */}
-        <div className="absolute bottom-6 left-6 right-6 z-[1000] flex flex-wrap gap-4 items-center justify-between pointer-events-none">
-          <div className="bg-orange-500 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 pointer-events-auto">
-            <Truck className="w-5 h-5" />
-            <div className="text-left">
-              <p className="text-[8px] font-black uppercase tracking-widest opacity-80 leading-none">Est. Arrival</p>
-              <p className="text-sm font-black uppercase tracking-tighter leading-none mt-1">12 - 15 Mins</p>
-            </div>
-          </div>
-          
-          <button className="bg-white text-gray-900 px-6 py-3 rounded-2xl shadow-2xl font-black text-[10px] uppercase tracking-widest pointer-events-auto hover:bg-gray-50 transition-colors">
-            Call Driver
-          </button>
-        </div>
-      </motion.div>
 
       {/* Horizontal Progress Tracker */}
       <div className="bg-white dark:bg-gray-900 p-6 sm:p-10 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-xl shadow-gray-50 dark:shadow-none overflow-x-auto hide-scrollbar">
