@@ -6,9 +6,6 @@ import { Mail, Lock, User, LogIn, UserPlus, Eye, EyeOff, Phone, Smartphone, Chec
 import toast from 'react-hot-toast';
 import api from '../services/api';
 
-import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
-import { auth } from '../lib/firebase';
-
 const Auth: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -19,23 +16,9 @@ const Auth: React.FC = () => {
   const [otpStep, setOtpStep] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+  const [debugOtp, setDebugOtp] = useState('');
   const { login, register } = useAuth();
   const navigate = useNavigate();
-
-  const setupRecaptcha = () => {
-    if ((window as any).recaptchaVerifier) return (window as any).recaptchaVerifier;
-    
-    (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-      'size': 'invisible',
-      'callback': () => {},
-      'expired-callback': () => {
-        toast.error('reCAPTCHA expired. Please try again.');
-        (window as any).recaptchaVerifier?.render();
-      }
-    });
-    return (window as any).recaptchaVerifier;
-  };
 
   const handleSendOTP = async () => {
     if (!phone || !name || !email || !password) {
@@ -43,29 +26,17 @@ const Auth: React.FC = () => {
       return;
     }
 
-    // Basic Pakistan phone normalization for Firebase
-    let formattedPhone = phone.replace(/\D/g, '');
-    if (formattedPhone.startsWith('03') && formattedPhone.length === 11) {
-      formattedPhone = '+92' + formattedPhone.substring(1);
-    } else if (!formattedPhone.startsWith('+')) {
-      formattedPhone = '+' + formattedPhone;
-    }
-
-    if (formattedPhone.length < 10) {
-      toast.error('Please enter a valid phone number with country code');
-      return;
-    }
-
     setLoading(true);
     try {
-      const verifier = setupRecaptcha();
-      const result = await signInWithPhoneNumber(auth, formattedPhone, verifier);
-      setConfirmationResult(result);
+      const response = await api.post('/auth/send-otp', { email, phone });
       setOtpStep(true);
-      toast.success('Verification code sent to your phone');
+      toast.success(response.data.message);
+      if (response.data.debug_otp) {
+        setDebugOtp(response.data.debug_otp);
+      }
     } catch (error: any) {
-      console.error('Firebase Phone Auth error:', error);
-      toast.error(error.message || 'Failed to send OTP. Check your Firebase console settings.');
+      console.error('Send OTP error:', error);
+      toast.error(error.response?.data?.message || 'Failed to send verification code');
     } finally {
       setLoading(false);
     }
@@ -85,17 +56,8 @@ const Auth: React.FC = () => {
         toast.success('Welcome back!');
         navigate('/');
       } else {
-        if (!confirmationResult) {
-          toast.error('OTP session expired. Please resend.');
-          setOtpStep(false);
-          return;
-        }
-
-        // Verify Firebase OTP
-        await confirmationResult.confirm(otp);
-        
-        // After firebase verification, register on our server
-        await register(name, email, password, phone, "FIREBASE_VERIFIED");
+        // Register on our server with OTP
+        await register(name, email, password, phone, otp);
         toast.success('Account verified and created!');
         navigate('/');
       }
@@ -183,7 +145,7 @@ const Auth: React.FC = () => {
                           className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-orange-500/20 focus:ring-4 focus:ring-orange-500/5 outline-none transition-all font-bold text-sm"
                         />
                       </div>
-                      <p className="text-[9px] text-gray-400 font-bold mt-2 ml-1 uppercase tracking-widest">Verification code will be sent to WhatsApp</p>
+                      <p className="text-[9px] text-gray-400 font-bold mt-2 ml-1 uppercase tracking-widest">Verification code will be sent to {email || 'your email'}</p>
                     </div>
 
                     <div>
@@ -221,6 +183,11 @@ const Auth: React.FC = () => {
                         placeholder="0 0 0 0 0 0"
                         className="w-full text-center text-3xl tracking-[0.5em] py-6 bg-gray-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-orange-500 outline-none transition-all font-black text-orange-500"
                       />
+                      {debugOtp && (
+                        <div className="p-3 bg-orange-50 border border-orange-200 rounded-xl">
+                          <p className="text-[10px] font-black text-orange-500 uppercase tracking-widest">Dev Mode OTP: {debugOtp}</p>
+                        </div>
+                      )}
                       <button 
                         type="button" 
                         onClick={() => setOtpStep(false)}
@@ -304,6 +271,7 @@ const Auth: React.FC = () => {
             onClick={() => {
               setIsLogin(!isLogin);
               setOtpStep(false);
+              setDebugOtp('');
             }}
             className="px-8 py-3 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-orange-500 hover:text-white transition-all shadow-sm"
           >

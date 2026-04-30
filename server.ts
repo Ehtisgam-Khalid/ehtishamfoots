@@ -10,11 +10,23 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import twilio from 'twilio';
 
+import nodemailer from "nodemailer";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const DB_PATH = path.join(__dirname, "db.json");
 const JWT_SECRET = process.env.JWT_SECRET || "default_secret_shamfood";
+
+// Brevo Transporter
+const transporter = nodemailer.createTransport({
+  host: "smtp-relay.brevo.com",
+  port: 587,
+  auth: {
+    user: process.env.BREVO_SMTP_USER,
+    pass: process.env.BREVO_SMTP_KEY,
+  },
+});
 
 async function getDb() {
   const data = await fs.readFile(DB_PATH, "utf-8");
@@ -101,42 +113,72 @@ async function startServer() {
   // --- Auth Routes ---
   app.post("/api/auth/send-otp", async (req, res) => {
     try {
-      const { phone } = req.body;
-      if (!phone) return res.status(400).json({ message: "Phone number required" });
-
-      // Normalize phone: remove non-digits, and handle Pakistani 03... format
-      let normalizedPhone = phone.replace(/\D/g, '');
-      if (normalizedPhone.startsWith('03') && normalizedPhone.length === 11) {
-        normalizedPhone = '92' + normalizedPhone.substring(1);
-      }
-      if (!normalizedPhone.startsWith('+')) {
-        normalizedPhone = '+' + normalizedPhone;
-      }
+      const { phone, email } = req.body;
+      const identifier = email || phone;
+      if (!identifier) return res.status(400).json({ message: "Identifier required" });
 
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      otps.set(phone, { otp, expires: Date.now() + 10 * 60 * 1000 }); // 10 mins
+      otps.set(identifier, { otp, expires: Date.now() + 10 * 60 * 1000 }); // 10 mins
 
-      if (twilioClient) {
-        const from = process.env.TWILIO_WHATSAPP_FROM || 'whatsapp:+14155238886';
-        // Ensure 'from' has whatsapp: prefix if not present
-        const twilioFrom = from.startsWith('whatsapp:') ? from : `whatsapp:${from}`;
-        
-        await twilioClient.messages.create({
-          from: twilioFrom,
-          to: `whatsapp:${normalizedPhone}`,
-          body: `*ShamFood Authentication*\n\nYour verification code is: *${otp}*\n\nThis code will expire in 10 minutes. Do not share it with anyone.`
-        });
-        res.json({ message: "OTP sent successfully on WhatsApp!" });
-      } else {
-        console.log(`[AUTH-DEBUG] OTP for ${phone}: ${otp}`);
-        res.json({ 
-          message: "OTP sent (Dev Mode)", 
-          debug_otp: otp // Only for easier testing in AIS environment if twilio not set
-        });
+      if (email) {
+        // Send via Brevo
+        const mailOptions = {
+          from: `"${process.env.BREVO_FROM_NAME || 'ShamFood'}" <${process.env.BREVO_FROM_EMAIL}>`,
+          to: email,
+          subject: "ShamFood Verification Code",
+          html: `
+            <div style="font-family: sans-serif; padding: 20px; color: #333;">
+              <h2 style="color: #f97316;">ShamFood Verification</h2>
+              <p>Your verification code is:</p>
+              <div style="font-size: 32px; font-weight: bold; padding: 10px; background: #f3f4f6; text-align: center; border-radius: 8px; letter-spacing: 5px; color: #f97316;">
+                ${otp}
+              </div>
+              <p>This code will expire in 10 minutes. Do not share it with anyone.</p>
+            </div>
+          `,
+        };
+
+        if (process.env.BREVO_SMTP_KEY) {
+          await transporter.sendMail(mailOptions);
+          res.json({ message: "OTP sent to your email!" });
+        } else {
+          console.log(`[AUTH-DEBUG] Email OTP for ${email}: ${otp}`);
+          res.json({ message: "OTP sent (Dev Mode)", debug_otp: otp });
+        }
+        return;
+      }
+
+      if (phone) {
+        // Phone OTP logic... (existing)
+        let normalizedPhone = phone.replace(/\D/g, '');
+        if (normalizedPhone.startsWith('03') && normalizedPhone.length === 11) {
+          normalizedPhone = '92' + normalizedPhone.substring(1);
+        }
+        if (!normalizedPhone.startsWith('+')) {
+          normalizedPhone = '+' + normalizedPhone;
+        }
+
+        if (twilioClient) {
+          const from = process.env.TWILIO_WHATSAPP_FROM || 'whatsapp:+14155238886';
+          const twilioFrom = from.startsWith('whatsapp:') ? from : `whatsapp:${from}`;
+          
+          await twilioClient.messages.create({
+            from: twilioFrom,
+            to: `whatsapp:${normalizedPhone}`,
+            body: `*ShamFood Authentication*\n\nYour verification code is: *${otp}*\n\nThis code will expire in 10 minutes. Do not share it with anyone.`
+          });
+          res.json({ message: "OTP sent successfully on WhatsApp!" });
+        } else {
+          console.log(`[AUTH-DEBUG] OTP for ${phone}: ${otp}`);
+          res.json({ 
+            message: "OTP sent (Dev Mode)", 
+            debug_otp: otp 
+          });
+        }
       }
     } catch (err: any) {
-      console.error("Twilio Error:", err);
-      res.status(500).json({ message: "Failed to send WhatsApp OTP. Use a valid WhatsApp number." });
+      console.error("Auth Error:", err);
+      res.status(500).json({ message: "Failed to send verification code." });
     }
   });
 
@@ -149,15 +191,18 @@ async function startServer() {
         return res.status(400).json({ message: "User already exists" });
       }
 
-      // Verify OTP (Check Firebase verification flag)
-      if (otp !== "FIREBASE_VERIFIED") {
-        const stored = otps.get(phone);
-        if (!stored || stored.otp !== otp || Date.now() > stored.expires) {
+      // Verify OTP step
+      const stored = otps.get(email) || otps.get(phone);
+      if (!stored || stored.otp !== otp || Date.now() > stored.expires) {
+        // Backwards compatibility for the FE transition or if Firebase is still used by mistake
+        if (otp !== "FIREBASE_VERIFIED") {
           return res.status(400).json({ message: "Invalid or expired OTP" });
         }
-        // Clear OTP after use
-        otps.delete(phone);
       }
+      
+      // Clear OTPs
+      otps.delete(email);
+      otps.delete(phone);
 
       const hashedPassword = await bcrypt.hash(password, 10);
       const user = {
