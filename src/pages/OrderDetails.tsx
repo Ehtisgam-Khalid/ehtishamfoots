@@ -224,12 +224,6 @@ const OrderDetails: React.FC = () => {
           </div>
         )}
 
-        {/* Map Overlay Badge */}
-        <div className="absolute top-6 left-6 z-[1000] flex items-center gap-3 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md px-5 py-3 rounded-2xl shadow-xl border border-white/20">
-          <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse shadow-lg shadow-green-500/50" />
-          <span className="text-[10px] font-black uppercase tracking-widest text-gray-900 dark:text-white">Live Tracking Active</span>
-        </div>
-
         {/* Map Footer Info */}
         <div className="absolute bottom-6 left-6 right-6 z-[1000] flex flex-wrap gap-4 items-center justify-between pointer-events-none">
           <div className="bg-orange-500 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 pointer-events-auto">
