@@ -138,9 +138,19 @@ async function startServer() {
           `,
         };
 
-        if (process.env.BREVO_SMTP_KEY) {
-          await transporter.sendMail(mailOptions);
-          res.json({ message: "OTP sent to your email!" });
+        if (process.env.BREVO_SMTP_KEY && process.env.BREVO_FROM_EMAIL && process.env.BREVO_SMTP_USER) {
+          try {
+            await transporter.sendMail(mailOptions);
+            res.json({ message: "OTP sent to your email!" });
+          } catch (mailErr: any) {
+            console.error("Brevo Mail Error:", mailErr);
+            // Fallback to debug mode even if key exists but something went wrong (e.g. invalid sender)
+            res.json({ 
+              message: "Failed to send email via Brevo. Check your SMTP settings and verified sender in Brevo.", 
+              debug_otp: otp,
+              error: "Mail service error" 
+            });
+          }
         } else {
           console.log(`[AUTH-DEBUG] Email OTP for ${email}: ${otp}`);
           res.json({ message: "OTP sent (Dev Mode)", debug_otp: otp });
