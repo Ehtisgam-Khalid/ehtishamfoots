@@ -11,12 +11,13 @@ import { Server } from "socket.io";
 import twilio from 'twilio';
 import nodemailer from "nodemailer";
 import { v2 as cloudinary } from 'cloudinary';
+import mongoose from "mongoose";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DB_PATH = path.join(__dirname, "db.json");
 const JWT_SECRET = process.env.JWT_SECRET || "default_secret_shamfood";
+const MONGODB_URI = process.env.MONGODB_URI;
 
 // Cloudinary Config
 cloudinary.config({
@@ -35,16 +36,94 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-async function getDb() {
-  const data = await fs.readFile(DB_PATH, "utf-8");
-  return JSON.parse(data);
-}
+// --- MongoDB Schemas ---
+const userSchema = new mongoose.Schema({
+  uid: { type: String, required: true, unique: true },
+  name: { type: String, required: true },
+  email: { type: String, required: true, unique: true, lowercase: true },
+  phone: { type: String },
+  password: { type: String, required: true },
+  role: { type: String, enum: ["user", "admin"], default: "user" },
+  verified: { type: Boolean, default: true },
+  lastCouponClaimedAt: { type: Date },
+  avatar: { type: String },
+  createdAt: { type: Date, default: Date.now }
+});
 
-async function saveDb(db: any) {
-  await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2));
-}
+const productSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  title: { type: String, required: true },
+  description: { type: String },
+  price: { type: Number, required: true },
+  image: { type: String },
+  category: { type: String },
+  available: { type: Boolean, default: true },
+  tags: [String],
+  createdAt: { type: Date, default: Date.now }
+});
+
+const categorySchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  name: { type: String, required: true },
+  icon: { type: String, default: "Package" }
+});
+
+const orderSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  userId: { type: String, required: true },
+  userName: { type: String },
+  userPhone: { type: String },
+  items: [{
+    id: String,
+    title: String,
+    price: Number,
+    quantity: Number,
+    image: String
+  }],
+  total: { type: Number, required: true },
+  status: { type: String, default: "pending" },
+  address: { type: String },
+  paymentMethod: { type: String },
+  discount: { type: Number, default: 0 },
+  deliveryFee: { type: Number, default: 0 },
+  hiddenForUser: { type: Boolean, default: false },
+  hiddenForAdmin: { type: Boolean, default: false },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+});
+
+const reviewSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  userId: { type: String, required: true },
+  userName: { type: String },
+  rating: { type: Number, required: true },
+  comment: { type: String },
+  orderId: { type: String },
+  createdAt: { type: Date, default: Date.now }
+});
+
+const User = mongoose.model("User", userSchema);
+const Product = mongoose.model("Product", productSchema);
+const Category = mongoose.model("Category", categorySchema);
+const Order = mongoose.model("Order", orderSchema);
+const Review = mongoose.model("Review", reviewSchema);
 
 async function startServer() {
+  let isConnected = false;
+  if (MONGODB_URI) {
+    try {
+      await mongoose.connect(MONGODB_URI, {
+        serverSelectionTimeoutMS: 5000, // Fail faster if URI is wrong
+      });
+      console.log("Connected to MongoDB Atlas");
+      isConnected = true;
+    } catch (err) {
+      console.error("MongoDB connection error:", err);
+    }
+  } else {
+    console.warn("MONGODB_URI not found. App will likely fail on DB operations. Please set MONGODB_URI in environment variables.");
+  }
+
   const app = express();
   const httpServer = createServer(app);
   const io = new Server(httpServer, {
@@ -58,25 +137,37 @@ async function startServer() {
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
+  // Middleware to check DB connection
+  app.use("/api", (req, res, next) => {
+    if (req.path === "/health") return next();
+    
+    if (!isConnected) {
+      return res.status(503).json({ 
+        message: "Database connection not established. Please verify your collection is active and MONGODB_URI is correct.",
+        database: "disconnected"
+      });
+    }
+    next();
+  });
+
   // Normalize prices on startup
-  try {
-    const db = await getDb();
-    let changed = false;
-    db.products = db.products.map((p: any) => {
-      // If it's a main item (not a small side like naan under 100), ensure it's at least 300
-      if (p.price < 300 && p.price > 50) {
-        p.price = 300 + (Math.floor(Math.random() * 50));
-        changed = true;
-      } else if (p.price <= 50) {
-        // Small items like Naan
-        p.price = 80;
-        changed = true;
+  if (isConnected) {
+    try {
+      const products = await Product.find({});
+      for (const p of products) {
+        let changed = false;
+        if (p.price < 300 && p.price > 50) {
+          p.price = 300 + (Math.floor(Math.random() * 50));
+          changed = true;
+        } else if (p.price <= 50) {
+          p.price = 80;
+          changed = true;
+        }
+        if (changed) await p.save();
       }
-      return p;
-    });
-    if (changed) await saveDb(db);
-  } catch (e) {
-    console.error("Migration error:", e);
+    } catch (e) {
+      console.error("Migration error:", e);
+    }
   }
 
   // Socket.io connection
@@ -207,13 +298,13 @@ async function startServer() {
         return res.status(400).json({ message: "Name, email, and password are required" });
       }
 
-      const db = await getDb();
-      if (db.users.find((u: any) => u.email.toLowerCase() === email.toLowerCase())) {
+      const existingUser = await User.findOne({ email: email.toLowerCase() });
+      if (existingUser) {
         return res.status(400).json({ message: "User with this email already exists" });
       }
 
       const hashedPassword = await bcrypt.hash(password, 10);
-      const user = {
+      const user = new User({
         uid: nanoid(),
         name,
         email: email.toLowerCase(),
@@ -221,17 +312,15 @@ async function startServer() {
         password: hashedPassword,
         role: "user",
         verified: true,
-        lastCouponClaimedAt: null,
-        createdAt: new Date().toISOString()
-      };
+      });
 
-      db.users.push(user);
-      await saveDb(db);
+      await user.save();
 
-      const { password: _, ...userWithoutPassword } = user;
+      const userObj = user.toObject();
+      delete (userObj as any).password;
       const token = jwt.sign({ uid: user.uid, role: user.role }, JWT_SECRET);
       
-      res.status(201).json({ user: userWithoutPassword, token });
+      res.status(201).json({ user: userObj, token });
     } catch (err) {
       console.error("Register Error:", err);
       res.status(500).json({ message: "Server error during registration" });
@@ -246,58 +335,29 @@ async function startServer() {
         return res.status(400).json({ message: "Email and password are required" });
       }
 
-      const db = await getDb();
       const normalizedInput = email.toLowerCase();
-      
-      const user = db.users.find((u: any) => 
-        u.email.toLowerCase() === normalizedInput || 
-        (u.phone && u.phone === email)
-      );
+      const user = await User.findOne({
+        $or: [
+          { email: normalizedInput },
+          { phone: email }
+        ]
+      });
 
       if (!user || !(await bcrypt.compare(password, user.password))) {
         return res.status(401).json({ message: "Invalid email/phone or password" });
       }
 
-      const { password: _, ...userWithoutPassword } = user;
+      const userObj = user.toObject();
+      delete (userObj as any).password;
       const token = jwt.sign({ uid: user.uid, role: user.role }, JWT_SECRET);
       
-      res.json({ user: userWithoutPassword, token });
+      res.json({ user: userObj, token });
     } catch (err) {
       console.error("Login Error:", err);
       res.status(500).json({ message: "Server error during login" });
     }
   });
 
-  app.post("/api/auth/claim-reward", async (req, res) => {
-    try {
-      const token = req.headers.authorization?.split(" ")[1];
-      if (!token) return res.status(401).json({ message: "Unauthorized" });
-
-      const decoded: any = jwt.verify(token, JWT_SECRET);
-      const db = await getDb();
-      const userIndex = db.users.findIndex((u: any) => u.uid === decoded.uid);
-      
-      if (userIndex === -1) return res.status(404).json({ message: "User not found" });
-
-      const lastClaimedAt = db.users[userIndex].lastCouponClaimedAt;
-      const now = new Date();
-      
-      if (lastClaimedAt) {
-        const lastDate = new Date(lastClaimedAt);
-        const diffHours = (now.getTime() - lastDate.getTime()) / (1000 * 60 * 60);
-        if (diffHours < 24) {
-          return res.status(400).json({ message: "Coupon available once every 24 hours" });
-        }
-      }
-
-      db.users[userIndex].lastCouponClaimedAt = now.toISOString();
-      await saveDb(db);
-      
-      res.json({ message: "Coupon applied! -PKR 50", lastCouponClaimedAt: now.toISOString() });
-    } catch (err) {
-      res.status(401).json({ message: "Invalid token" });
-    }
-  });
 
   app.get("/api/auth/me", async (req, res) => {
     try {
@@ -305,13 +365,13 @@ async function startServer() {
       if (!token) return res.status(401).json({ message: "Unauthorized" });
 
       const decoded: any = jwt.verify(token, JWT_SECRET);
-      const db = await getDb();
-      const user = db.users.find((u: any) => u.uid === decoded.uid);
+      const user = await User.findOne({ uid: decoded.uid });
       
       if (!user) return res.status(401).json({ message: "User not found" });
 
-      const { password: _, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
+      const userObj = user.toObject();
+      delete (userObj as any).password;
+      res.json(userObj);
     } catch (err) {
       res.status(401).json({ message: "Invalid token" });
     }
@@ -323,14 +383,13 @@ async function startServer() {
       if (!token) return res.status(401).json({ message: "Unauthorized" });
 
       const decoded: any = jwt.verify(token, JWT_SECRET);
-      const db = await getDb();
-      const userIndex = db.users.findIndex((u: any) => u.uid === decoded.uid);
+      const user = await User.findOne({ uid: decoded.uid });
       
-      if (userIndex === -1) return res.status(404).json({ message: "User not found" });
+      if (!user) return res.status(404).json({ message: "User not found" });
 
       const { name, phone, avatar } = req.body;
-      if (name) db.users[userIndex].name = name;
-      if (phone) db.users[userIndex].phone = phone;
+      if (name) user.name = name;
+      if (phone) user.phone = phone;
       
       if (avatar) {
         if (avatar.startsWith('data:image')) {
@@ -339,18 +398,19 @@ async function startServer() {
               folder: 'avatars',
               resource_type: 'auto'
             });
-            db.users[userIndex].avatar = uploadRes.secure_url;
+            user.avatar = uploadRes.secure_url;
           } else {
-            db.users[userIndex].avatar = avatar;
+            user.avatar = avatar;
           }
         } else {
-          db.users[userIndex].avatar = avatar;
+          user.avatar = avatar;
         }
       }
 
-      await saveDb(db);
-      const { password: _, ...userWithoutPassword } = db.users[userIndex];
-      res.json(userWithoutPassword);
+      await user.save();
+      const userObj = user.toObject();
+      delete (userObj as any).password;
+      res.json(userObj);
     } catch (err) {
       res.status(401).json({ message: "Invalid token" });
     }
@@ -381,8 +441,8 @@ async function startServer() {
   });
 
   app.get("/api/products", async (req, res) => {
-    const db = await getDb();
-    res.json(db.products);
+    const products = await Product.find({});
+    res.json(products);
   });
 
   app.post("/api/products", async (req, res) => {
@@ -393,21 +453,19 @@ async function startServer() {
       const token = authHeader.split(" ")[1];
       const decoded: any = jwt.verify(token, JWT_SECRET);
 
-      const db = await getDb();
-      const user = db.users.find((u: any) => u.uid === decoded.uid);
+      const user = await User.findOne({ uid: decoded.uid });
       if (!user || user.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      const product = {
+      const product = new Product({
         id: nanoid(),
         ...req.body,
         price: Number(req.body.price),
         available: true
-      };
+      });
 
-      db.products.push(product);
-      await saveDb(db);
+      await product.save();
       
       notifyAll("new_product", { title: product.title });
       
@@ -426,28 +484,19 @@ async function startServer() {
       const token = authHeader.split(" ")[1];
       const decoded: any = jwt.verify(token, JWT_SECRET);
 
-      const db = await getDb();
-      const user = db.users.find((u: any) => u.uid === decoded.uid);
+      const user = await User.findOne({ uid: decoded.uid });
       if (!user || user.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
       const targetId = String(req.params.id).trim();
       
-      const initialCount = db.products.length;
-      db.products = db.products.filter((p: any) => String(p.id).trim() !== targetId);
+      const result = await Product.findOneAndDelete({ id: targetId });
       
-      if (db.products.length === initialCount) {
-        // Try fallback with case-insensitive
-        db.products = db.products.filter((p: any) => String(p.id).trim().toLowerCase() !== targetId.toLowerCase());
-      }
-
-      if (db.products.length === initialCount) {
-        console.log(`[ADMIN DELETE PRODUCT] Failed - ID not found: ${targetId}`);
+      if (!result) {
         return res.status(404).json({ message: "Product not found" });
       }
 
-      await saveDb(db);
       console.log(`[ADMIN DELETE PRODUCT] Success - Deleted ID: ${targetId}`);
       res.json({ message: "Product deleted successfully" });
     } catch (err) {
@@ -464,28 +513,25 @@ async function startServer() {
       const token = authHeader.split(" ")[1];
       const decoded: any = jwt.verify(token, JWT_SECRET);
 
-      const db = await getDb();
-      const user = db.users.find((u: any) => u.uid === decoded.uid);
+      const user = await User.findOne({ uid: decoded.uid });
       if (!user || user.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
       const targetId = String(req.params.id).trim();
-      const index = db.products.findIndex((p: any) => String(p.id).trim() === targetId);
+      const product = await Product.findOne({ id: targetId });
       
-      if (index === -1) {
+      if (!product) {
         return res.status(404).json({ message: "Product not found" });
       }
 
-      db.products[index] = {
-        ...db.products[index],
-        ...req.body,
-        id: db.products[index].id,
-        price: Number(req.body.price || db.products[index].price)
-      };
-
-      await saveDb(db);
-      res.json(db.products[index]);
+      const updates = req.body;
+      if (updates.price) updates.price = Number(updates.price);
+      
+      Object.assign(product, updates);
+      await product.save();
+      
+      res.json(product);
     } catch (err) {
       console.error("Update product error:", err);
       res.status(500).json({ message: "Failed to update product" });
@@ -493,8 +539,8 @@ async function startServer() {
   });
 
   app.get("/api/categories", async (req, res) => {
-    const db = await getDb();
-    res.json(db.categories);
+    const categories = await Category.find({});
+    res.json(categories);
   });
 
   app.post("/api/categories", async (req, res) => {
@@ -504,18 +550,16 @@ async function startServer() {
       const token = authHeader.split(" ")[1];
       const decoded: any = jwt.verify(token, JWT_SECRET);
 
-      const db = await getDb();
-      const user = db.users.find((u: any) => u.uid === decoded.uid);
+      const user = await User.findOne({ uid: decoded.uid });
       if (!user || user.role !== 'admin') return res.status(403).json({ message: "Admin access required" });
 
-      const category = {
+      const category = new Category({
         id: nanoid(),
         name: req.body.name,
         icon: req.body.icon || "Package"
-      };
+      });
 
-      db.categories.push(category);
-      await saveDb(db);
+      await category.save();
       res.status(201).json(category);
     } catch (err) {
       res.status(500).json({ message: "Failed to add category" });
@@ -529,23 +573,16 @@ async function startServer() {
       const token = authHeader.split(" ")[1];
       const decoded: any = jwt.verify(token, JWT_SECRET);
 
-      const db = await getDb();
-      const user = db.users.find((u: any) => u.uid === decoded.uid);
+      const user = await User.findOne({ uid: decoded.uid });
       if (!user || user.role !== 'admin') return res.status(403).json({ message: "Admin access required" });
 
       const targetId = String(req.params.id).trim();
-      console.log(`[ADMIN DELETE CATEGORY] Request for ID: "${targetId}"`);
+      const result = await Category.findOneAndDelete({ id: targetId });
 
-      const index = db.categories.findIndex((c: any) => String(c.id).trim() === targetId);
-
-      if (index === -1) {
-        console.log(`[ADMIN DELETE CATEGORY] Not found. Available IDs: ${db.categories.map((c: any) => c.id).join(", ")}`);
+      if (!result) {
         return res.status(404).json({ message: "Category not found" });
       }
 
-      db.categories.splice(index, 1);
-      await saveDb(db);
-      console.log(`[ADMIN DELETE CATEGORY] Successfully deleted ID: ${targetId}`);
       res.json({ message: "Category deleted successfully" });
     } catch (err) {
       console.error("Delete category error:", err);
@@ -560,25 +597,19 @@ async function startServer() {
       const token = authHeader.split(" ")[1];
       const decoded: any = jwt.verify(token, JWT_SECRET);
 
-      const db = await getDb();
-      const user = db.users.find((u: any) => u.uid === decoded.uid);
+      const user = await User.findOne({ uid: decoded.uid });
       if (!user || user.role !== 'admin') return res.status(403).json({ message: "Admin access required" });
 
       const targetId = String(req.params.id).trim();
-      const index = db.categories.findIndex((c: any) => String(c.id).trim() === targetId);
+      const category = await Category.findOne({ id: targetId });
 
-      if (index === -1) {
+      if (!category) {
         return res.status(404).json({ message: "Category not found" });
       }
 
-      db.categories[index] = {
-        ...db.categories[index],
-        ...req.body,
-        id: db.categories[index].id
-      };
-
-      await saveDb(db);
-      res.json(db.categories[index]);
+      Object.assign(category, req.body);
+      await category.save();
+      res.json(category);
     } catch (err) {
       res.status(500).json({ message: "Failed to update category" });
     }
@@ -598,8 +629,7 @@ async function startServer() {
       const decoded: any = jwt.verify(token, JWT_SECRET);
       console.log("[ORDER CREATE] User ID:", decoded.uid);
 
-      const db = await getDb();
-      const user = db.users.find((u: any) => u.uid === decoded.uid);
+      const user = await User.findOne({ uid: decoded.uid });
       
       if (!req.body.items || !Array.isArray(req.body.items)) {
         console.log("[ORDER CREATE] Failed - Items missing or not an array");
@@ -626,20 +656,17 @@ async function startServer() {
         finalTotal += Number(req.body.deliveryFee);
       }
 
-      const order = {
+      const order = new Order({
         id: nanoid(),
         userId: decoded.uid,
         userName: user?.name || "Guest",
         userPhone: user?.phone || "N/A",
         ...req.body,
-        total: finalTotal, // Use server-calculated total
-        status: "pending",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
+        total: finalTotal,
+        status: "pending"
+      });
 
-      db.orders.push(order);
-      await saveDb(db);
+      await order.save();
       
       notifyAdmins("new_order", order);
       
@@ -656,24 +683,14 @@ async function startServer() {
       if (!token) return res.status(401).json({ message: "Unauthorized" });
       const decoded: any = jwt.verify(token, JWT_SECRET);
 
-      const db = await getDb();
-      const user = db.users.find((u: any) => u.uid === decoded.uid);
+      const user = await User.findOne({ uid: decoded.uid });
       
       if (user?.role === 'admin') {
-        // Enrich orders with user info if missing (for legacy orders) and filter hidden
-        const enrichedOrders = db.orders
-          .filter((o: any) => !o.hiddenForAdmin)
-          .map((o: any) => {
-            const u = db.users.find((u: any) => u.uid === o.userId);
-            return {
-              ...o,
-              userName: o.userName || u?.name || 'Unknown',
-              userPhone: o.userPhone || u?.phone || 'N/A'
-            };
-          });
-        res.json(enrichedOrders);
+        const orders = await Order.find({ hiddenForAdmin: { $ne: true } });
+        res.json(orders);
       } else {
-        res.json(db.orders.filter((o: any) => o.userId === decoded.uid && !o.hiddenForUser));
+        const orders = await Order.find({ userId: decoded.uid, hiddenForUser: { $ne: true } });
+        res.json(orders);
       }
     } catch (err) {
       res.status(500).json({ message: "Failed to fetch orders" });
@@ -682,8 +699,7 @@ async function startServer() {
 
   app.get("/api/orders/:id", async (req, res) => {
     try {
-      const db = await getDb();
-      const order = db.orders.find((o: any) => o.id === req.params.id);
+      const order = await Order.findOne({ id: req.params.id });
       if (!order) return res.status(404).json({ message: "Order not found" });
       res.json(order);
     } catch (err) {
@@ -697,26 +713,25 @@ async function startServer() {
       if (!token) return res.status(401).json({ message: "Unauthorized" });
       const decoded: any = jwt.verify(token, JWT_SECRET);
 
-      const db = await getDb();
-      const user = db.users.find((u: any) => u.uid === decoded.uid);
-      if (user?.role !== 'admin') {
+      const user = await User.findOne({ uid: decoded.uid });
+      if (!user || user.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
       const targetId = String(req.params.id).trim();
-      const index = db.orders.findIndex((o: any) => String(o.id).trim() === targetId);
-      if (index === -1) {
-        console.log(`[ADMIN STATUS UPDATE] Order not found: ${targetId}`);
+      const order = await Order.findOne({ id: targetId });
+      
+      if (!order) {
         return res.status(404).json({ message: "Order not found" });
       }
 
-      db.orders[index].status = req.body.status;
-      db.orders[index].updatedAt = new Date().toISOString();
-      await saveDb(db);
+      order.status = req.body.status;
+      order.updatedAt = new Date();
+      await order.save();
       
-      notifyUser(db.orders[index].userId, "order_status_update", db.orders[index]);
+      notifyUser(order.userId, "order_status_update", order);
       
-      res.json(db.orders[index]);
+      res.json(order);
     } catch (err) {
       res.status(500).json({ message: "Update failed" });
     }
@@ -728,11 +743,9 @@ async function startServer() {
       if (!token) return res.status(401).json({ message: "Unauthorized" });
       const decoded: any = jwt.verify(token, JWT_SECRET);
 
-      const db = await getDb();
-      const userIndex = db.users.findIndex((u: any) => u.uid === decoded.uid);
-      if (userIndex === -1) return res.status(404).json({ message: "User not found" });
+      const user = await User.findOne({ uid: decoded.uid });
+      if (!user) return res.status(404).json({ message: "User not found" });
 
-      const user = db.users[userIndex];
       const now = new Date();
       
       if (user.lastCouponClaimedAt) {
@@ -747,8 +760,8 @@ async function startServer() {
         }
       }
 
-      db.users[userIndex].lastCouponClaimedAt = now.toISOString();
-      await saveDb(db);
+      user.lastCouponClaimedAt = now;
+      await user.save();
 
       res.json({ message: "Reward claimed! Rs. 50 will be deducted from your next order above Rs. 600.", nextClaimAt: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString() });
     } catch (err) {
@@ -765,30 +778,27 @@ async function startServer() {
       const token = authHeader.split(" ")[1];
       const decoded: any = jwt.verify(token, JWT_SECRET);
 
-      const db = await getDb();
-      const user = db.users.find((u: any) => u.uid === decoded.uid);
-      const orderIndex = db.orders.findIndex((o: any) => String(o.id).trim() === targetId);
+      const user = await User.findOne({ uid: decoded.uid });
+      const order = await Order.findOne({ id: targetId });
 
-      if (orderIndex === -1) {
+      if (!order) {
         return res.status(404).json({ message: "Order not found" });
       }
 
       if (user?.role === 'admin') {
-        db.orders[orderIndex].hiddenForAdmin = true;
-      } else if (db.orders[orderIndex].userId === decoded.uid) {
-        // Soft delete for users: won't be visible to them but stays for admin
-        db.orders[orderIndex].hiddenForUser = true;
+        order.hiddenForAdmin = true;
+      } else if (order.userId === decoded.uid) {
+        order.hiddenForUser = true;
       } else {
         return res.status(403).json({ message: "Access denied" });
       }
 
-      // Cleanup: Physically remove if hidden from both (if it wasn't already spliced)
-      const checkAgain = db.orders[orderIndex];
-      if (checkAgain && checkAgain.hiddenForAdmin && checkAgain.hiddenForUser) {
-        db.orders.splice(orderIndex, 1);
+      if (order.hiddenForAdmin && order.hiddenForUser) {
+        await Order.findOneAndDelete({ id: targetId });
+      } else {
+        await order.save();
       }
 
-      await saveDb(db);
       res.json({ message: "Order deleted successfully" });
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Failed to remove order" });
@@ -803,10 +813,9 @@ async function startServer() {
       const token = authHeader.split(" ")[1];
       const decoded: any = jwt.verify(token, JWT_SECRET);
 
-      const db = await getDb();
-      const user = db.users.find((u: any) => u.uid === decoded.uid);
+      const user = await User.findOne({ uid: decoded.uid });
       const targetId = String(req.params.id).trim();
-      const order = db.orders.find((o: any) => String(o.id).trim() === targetId);
+      const order = await Order.findOne({ id: targetId });
 
       if (!order) return res.status(404).json({ message: "Order not found" });
 
@@ -825,8 +834,8 @@ async function startServer() {
       }
 
       order.status = "cancelled";
-      order.updatedAt = new Date().toISOString();
-      await saveDb(db);
+      order.updatedAt = new Date();
+      await order.save();
       res.json({ message: "Order cancelled successfully", order });
     } catch (err: any) {
       res.status(500).json({ message: err.message || "Failed to cancel order" });
@@ -835,8 +844,8 @@ async function startServer() {
 
   // --- Review Routes ---
   app.get("/api/reviews", async (req, res) => {
-    const db = await getDb();
-    res.json(db.reviews || []);
+    const reviews = await Review.find({}).sort({ createdAt: -1 });
+    res.json(reviews);
   });
 
   app.post("/api/reviews", async (req, res) => {
@@ -847,21 +856,17 @@ async function startServer() {
       const token = authHeader.split(" ")[1];
       const decoded: any = jwt.verify(token, JWT_SECRET);
 
-      const db = await getDb();
-      const user = db.users.find((u: any) => u.uid === decoded.uid);
+      const user = await User.findOne({ uid: decoded.uid });
       if (!user) return res.status(401).json({ message: "User not found" });
 
-      const review = {
+      const review = new Review({
         id: nanoid(),
         userId: decoded.uid,
         userName: user.name,
-        ...req.body,
-        createdAt: new Date().toISOString()
-      };
+        ...req.body
+      });
 
-      if (!db.reviews) db.reviews = [];
-      db.reviews.push(review);
-      await saveDb(db);
+      await review.save();
       
       res.status(201).json(review);
     } catch (err) {
@@ -871,7 +876,11 @@ async function startServer() {
 
   // --- Health Check ---
   app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", mode: process.env.NODE_ENV });
+    res.json({ 
+      status: "ok", 
+      mode: process.env.NODE_ENV,
+      database: isConnected ? "connected" : "disconnected"
+    });
   });
 
   // Vite middleware for development or Static files for production
