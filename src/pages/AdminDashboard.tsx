@@ -4,7 +4,7 @@ import api from '../services/api';
 import toast from 'react-hot-toast';
 import { 
   LayoutDashboard, ShoppingBag, Package, Settings, Plus, 
-  Trash2, Edit3, X, Check, CreditCard, Loader2, User, MapPin, Eye
+  Trash2, Edit3, X, Check, CreditCard, Loader2, User, MapPin, Eye, Upload, Image as ImageIcon
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatPrice } from '../lib/utils';
@@ -54,6 +54,38 @@ const AdminDashboard: React.FC = () => {
       toast.error('Failed to fetch admin data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const uploadImage = async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async () => {
+        try {
+          const response = await api.post('/upload', { image: reader.result });
+          resolve(response.data.url);
+        } catch (err) {
+          reject('Upload failed');
+        }
+      };
+      reader.onerror = () => reject('File read failed');
+    });
+  };
+
+  const handleImageChange = async (file: File, type: 'new' | 'edit') => {
+    if (!file) return;
+    const loadingToast = toast.loading('Uploading tasty photo...');
+    try {
+      const url = await uploadImage(file);
+      if (type === 'new') {
+        setNewProduct(prev => ({ ...prev, image: url }));
+      } else {
+        setEditingProduct(prev => prev ? ({ ...prev, image: url }) : null);
+      }
+      toast.success('Photo uploaded!', { id: loadingToast });
+    } catch (err) {
+      toast.error('Upload failed. Try again!', { id: loadingToast });
     }
   };
 
@@ -694,8 +726,40 @@ const AdminDashboard: React.FC = () => {
                 </select>
               </div>
               <div className="sm:col-span-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 block">Image Link</label>
-                <input required value={editingProduct.image} onChange={e => setEditingProduct({...editingProduct, image: e.target.value})} className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-orange-500 rounded-[1.5rem] outline-none dark:text-white font-bold" />
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 block">Meal Photo</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="relative group aspect-video rounded-[1.5rem] overflow-hidden bg-gray-50 dark:bg-gray-800 border-2 border-dashed border-gray-200 dark:border-gray-700 flex items-center justify-center">
+                    {editingProduct.image ? (
+                      <>
+                        <img src={editingProduct.image} alt="Preview" className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <label className="cursor-pointer bg-white text-gray-900 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest translate-y-2 group-hover:translate-y-0 transition-transform">
+                            Change Photo
+                            <input type="file" className="hidden" accept="image/*" onChange={e => e.target.files?.[0] && handleImageChange(e.target.files[0], 'edit')} />
+                          </label>
+                        </div>
+                      </>
+                    ) : (
+                      <label className="cursor-pointer flex flex-col items-center gap-2 group-hover:scale-110 transition-transform">
+                        <Upload className="w-8 h-8 text-gray-300" />
+                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Select Image</span>
+                        <input type="file" className="hidden" accept="image/*" onChange={e => e.target.files?.[0] && handleImageChange(e.target.files[0], 'edit')} />
+                      </label>
+                    )}
+                  </div>
+                  <div className="space-y-3">
+                    <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest leading-relaxed">Recommended size: 1080x720px. JPG, PNG or WebP allowed. Max size 5MB.</p>
+                    <div className="relative">
+                      <ImageIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <input 
+                        value={editingProduct.image} 
+                        onChange={e => setEditingProduct({...editingProduct, image: e.target.value})} 
+                        className="w-full pl-12 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl outline-none dark:text-white text-xs font-bold" 
+                        placeholder="Or paste URL here..."
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
               <div className="sm:col-span-2">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 block">Short Description</label>
@@ -744,8 +808,40 @@ const AdminDashboard: React.FC = () => {
                 </select>
               </div>
               <div className="sm:col-span-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 block">Tasty Photo Image Link</label>
-                <input required value={newProduct.image} onChange={e => setNewProduct({...newProduct, image: e.target.value})} className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-orange-500 rounded-[1.5rem] outline-none dark:text-white font-bold" placeholder="https://..." />
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 block">Capture the Cravings (Meal Photo)</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="relative group aspect-video rounded-[1.5rem] overflow-hidden bg-gray-50 dark:bg-gray-800 border-2 border-dashed border-gray-200 dark:border-gray-700 flex items-center justify-center">
+                    {newProduct.image ? (
+                      <>
+                        <img src={newProduct.image} alt="Preview" className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <label className="cursor-pointer bg-white text-gray-900 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest translate-y-2 group-hover:translate-y-0 transition-transform">
+                            Replace Photo
+                            <input type="file" className="hidden" accept="image/*" onChange={e => e.target.files?.[0] && handleImageChange(e.target.files[0], 'new')} />
+                          </label>
+                        </div>
+                      </>
+                    ) : (
+                      <label className="cursor-pointer flex flex-col items-center gap-2 group-hover:scale-110 transition-transform">
+                        <Upload className="w-10 h-10 text-orange-500/20" />
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Select Tasty Image</span>
+                        <input type="file" className="hidden" accept="image/*" onChange={e => e.target.files?.[0] && handleImageChange(e.target.files[0], 'new')} />
+                      </label>
+                    )}
+                  </div>
+                  <div className="space-y-4">
+                    <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest leading-relaxed">Good photos increase sales by 40%! Paste a link or upload a file directly.</p>
+                    <div className="relative">
+                      <ImageIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <input 
+                        value={newProduct.image} 
+                        onChange={e => setNewProduct({...newProduct, image: e.target.value})} 
+                        className="w-full pl-12 pr-4 py-4 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl outline-none dark:text-white text-sm font-bold" 
+                        placeholder="Image URL link..."
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
               <div className="sm:col-span-2">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 block">Meal Description</label>

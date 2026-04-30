@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mail, Lock, User, LogIn, UserPlus, Eye, EyeOff, Phone, Smartphone, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, User, LogIn, UserPlus, Eye, EyeOff, Phone } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 
@@ -207,6 +207,10 @@ const Auth: React.FC = () => {
           <button 
             onClick={() => {
               setIsLogin(!isLogin);
+              setEmail('');
+              setPassword('');
+              setName('');
+              setPhone('');
             }}
             className="px-8 py-3 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-orange-500 hover:text-white transition-all shadow-sm"
           >

@@ -9,14 +9,21 @@ import { nanoid } from "nanoid";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import twilio from 'twilio';
-
 import nodemailer from "nodemailer";
+import { v2 as cloudinary } from 'cloudinary';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const DB_PATH = path.join(__dirname, "db.json");
 const JWT_SECRET = process.env.JWT_SECRET || "default_secret_shamfood";
+
+// Cloudinary Config
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 // Brevo Transporter
 const transporter = nodemailer.createTransport({
@@ -48,8 +55,8 @@ async function startServer() {
   });
   const PORT = 3000;
 
-  app.use(express.json({ limit: '5mb' }));
-  app.use(express.urlencoded({ limit: '5mb', extended: true }));
+  app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
   // Normalize prices on startup
   try {
@@ -196,16 +203,20 @@ async function startServer() {
     try {
       const { name, email, password, phone } = req.body;
       
+      if (!name || !email || !password) {
+        return res.status(400).json({ message: "Name, email, and password are required" });
+      }
+
       const db = await getDb();
-      if (db.users.find((u: any) => u.email === email)) {
-        return res.status(400).json({ message: "User already exists" });
+      if (db.users.find((u: any) => u.email.toLowerCase() === email.toLowerCase())) {
+        return res.status(400).json({ message: "User with this email already exists" });
       }
 
       const hashedPassword = await bcrypt.hash(password, 10);
       const user = {
         uid: nanoid(),
         name,
-        email,
+        email: email.toLowerCase(),
         phone,
         password: hashedPassword,
         role: "user",
@@ -222,18 +233,29 @@ async function startServer() {
       
       res.status(201).json({ user: userWithoutPassword, token });
     } catch (err) {
-      res.status(500).json({ message: "Server error" });
+      console.error("Register Error:", err);
+      res.status(500).json({ message: "Server error during registration" });
     }
   });
 
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { email, password } = req.body;
-      const db = await getDb();
       
-      const user = db.users.find((u: any) => u.email === email || (u.phone && u.phone === email));
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+
+      const db = await getDb();
+      const normalizedInput = email.toLowerCase();
+      
+      const user = db.users.find((u: any) => 
+        u.email.toLowerCase() === normalizedInput || 
+        (u.phone && u.phone === email)
+      );
+
       if (!user || !(await bcrypt.compare(password, user.password))) {
-        return res.status(401).json({ message: "Invalid credentials" });
+        return res.status(401).json({ message: "Invalid email/phone or password" });
       }
 
       const { password: _, ...userWithoutPassword } = user;
@@ -241,7 +263,8 @@ async function startServer() {
       
       res.json({ user: userWithoutPassword, token });
     } catch (err) {
-      res.status(500).json({ message: "Server error" });
+      console.error("Login Error:", err);
+      res.status(500).json({ message: "Server error during login" });
     }
   });
 
@@ -308,7 +331,22 @@ async function startServer() {
       const { name, phone, avatar } = req.body;
       if (name) db.users[userIndex].name = name;
       if (phone) db.users[userIndex].phone = phone;
-      if (avatar) db.users[userIndex].avatar = avatar;
+      
+      if (avatar) {
+        if (avatar.startsWith('data:image')) {
+          if (process.env.CLOUDINARY_CLOUD_NAME) {
+            const uploadRes = await cloudinary.uploader.upload(avatar, {
+              folder: 'avatars',
+              resource_type: 'auto'
+            });
+            db.users[userIndex].avatar = uploadRes.secure_url;
+          } else {
+            db.users[userIndex].avatar = avatar;
+          }
+        } else {
+          db.users[userIndex].avatar = avatar;
+        }
+      }
 
       await saveDb(db);
       const { password: _, ...userWithoutPassword } = db.users[userIndex];
@@ -319,6 +357,29 @@ async function startServer() {
   });
 
   // --- Product Routes ---
+  // --- Cloud Storage / Upload ---
+  app.post("/api/upload", async (req, res) => {
+    try {
+      const { image, folder = 'shamfood' } = req.body;
+      if (!image) return res.status(400).json({ message: "No image provided" });
+
+      if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY) {
+        const uploadResponse = await cloudinary.uploader.upload(image, {
+          folder: folder,
+          resource_type: 'auto'
+        });
+        res.json({ url: uploadResponse.secure_url });
+      } else {
+        // Mock success in dev mode if credentials missing
+        console.log("[STORAGE-DEBUG] Mocking upload (Cloudinary credentials missing)");
+        res.json({ url: image.startsWith('data:') ? 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c' : image });
+      }
+    } catch (err: any) {
+      console.error("Upload Error:", err);
+      res.status(500).json({ message: "Upload failed" });
+    }
+  });
+
   app.get("/api/products", async (req, res) => {
     const db = await getDb();
     res.json(db.products);
