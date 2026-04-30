@@ -8,7 +8,7 @@ interface AuthContextType {
   loading: boolean;
   isAdmin: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string, phone: string, otp: string) => Promise<void>;
+  register: (name: string, email: string, password: string, phone: string) => Promise<void>;
   logout: () => void;
   setProfile: (profile: UserProfile | null) => void;
 }
@@ -53,8 +53,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setProfile(response.data.user);
   };
 
-  const register = async (name: string, email: string, password: string, phone: string, otp: string) => {
-    const response = await api.post('/auth/register', { name, email, password, phone, otp });
+  const register = async (name: string, email: string, password: string, phone: string) => {
+    const response = await api.post('/auth/register', { name, email, password, phone });
     localStorage.setItem('token', response.data.token);
     setProfile(response.data.user);
   };

@@ -194,25 +194,12 @@ async function startServer() {
 
   app.post("/api/auth/register", async (req, res) => {
     try {
-      const { name, email, password, phone, otp } = req.body;
+      const { name, email, password, phone } = req.body;
       
       const db = await getDb();
       if (db.users.find((u: any) => u.email === email)) {
         return res.status(400).json({ message: "User already exists" });
       }
-
-      // Verify OTP step
-      const stored = otps.get(email) || otps.get(phone);
-      if (!stored || stored.otp !== otp || Date.now() > stored.expires) {
-        // Backwards compatibility for the FE transition or if Firebase is still used by mistake
-        if (otp !== "FIREBASE_VERIFIED") {
-          return res.status(400).json({ message: "Invalid or expired OTP" });
-        }
-      }
-      
-      // Clear OTPs
-      otps.delete(email);
-      otps.delete(phone);
 
       const hashedPassword = await bcrypt.hash(password, 10);
       const user = {
