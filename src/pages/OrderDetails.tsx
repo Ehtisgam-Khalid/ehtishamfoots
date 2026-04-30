@@ -10,6 +10,7 @@ import { CircularTimer } from '../components/CircularTimer';
 import { formatPrice } from '../lib/utils';
 import { io } from 'socket.io-client';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { ReviewModal } from '../components/ReviewModal';
 
 const steps = [
@@ -87,9 +88,12 @@ const OrderDetails: React.FC = () => {
 
   const currentStepIndex = order ? steps.findIndex(s => s.key === order.status) : -1;
   const canCancel = order && order.status === 'pending' && (now.getTime() - new Date(order.createdAt).getTime() < 5 * 60 * 1000);
+  const { theme } = useTheme();
 
   if (loading) return <div className="flex justify-center p-20"><Loader2 className="w-10 h-10 text-orange-500 animate-spin" /></div>;
   if (!order) return <div className="text-center py-20 font-bold text-gray-500">Order not found.</div>;
+
+  const isDark = theme === 'dark';
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-32 px-4 sm:px-6">
@@ -104,7 +108,7 @@ const OrderDetails: React.FC = () => {
       </div>
 
       {/* Horizontal Progress Tracker */}
-      <div className="bg-white dark:bg-gray-900 p-6 sm:p-10 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-xl shadow-gray-50 dark:shadow-none overflow-x-auto hide-scrollbar">
+      <div className="hidden sm:block bg-white dark:bg-gray-900 p-6 sm:p-10 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-xl shadow-gray-50 dark:shadow-none overflow-x-auto hide-scrollbar">
         <div className="min-w-[600px] flex justify-between relative px-4">
           {/* Progress Bar Background */}
           <div className="absolute top-1/2 left-12 right-12 h-1 bg-gray-100 dark:bg-gray-800 -translate-y-1/2 z-0 rounded-full" />
@@ -122,23 +126,20 @@ const OrderDetails: React.FC = () => {
             const isCurrent = index === currentStepIndex;
             const StepIcon = step.icon;
             
-            // Map Tailwind color classes to hex or use directly if possible
-            // For simplicity and consistency with the design, we'll use the scale but let's make the current icon pop with its specific color if not completed
-            
             return (
               <div key={step.key} className="relative z-10 flex flex-col items-center gap-4 w-28">
                 <motion.div 
                   initial={false}
                   animate={{ 
                     scale: isCurrent ? 1.15 : 1,
-                    backgroundColor: isCompleted ? (isCurrent ? '#f97316' : '#fff') : '#f8fafc',
-                    borderColor: isCompleted ? '#f97316' : (isCurrent ? '#f97316' : '#e2e8f0'),
+                    backgroundColor: isCompleted ? (isCurrent ? '#f97316' : (isDark ? '#1a1a1a' : '#fff')) : (isDark ? '#0a0a0a' : '#f8fafc'),
+                    borderColor: isCompleted ? '#f97316' : (isCurrent ? '#f97316' : (isDark ? '#333' : '#e2e8f0')),
                   }}
                   className={`w-14 h-14 rounded-2xl border-2 flex items-center justify-center transition-all ${
-                    isCompleted ? 'shadow-xl shadow-orange-500/10' : 'dark:bg-gray-800 dark:border-gray-700'
+                    isCompleted ? 'shadow-xl shadow-orange-500/10' : ''
                   }`}
                 >
-                  <StepIcon className={`w-6 h-6 ${isCompleted ? (isCurrent ? 'text-white' : step.color) : 'text-gray-300'}`} />
+                  <StepIcon className={`w-6 h-6 ${isCompleted ? (isCurrent ? 'text-white' : step.color) : 'text-gray-300 dark:text-gray-700'}`} />
                 </motion.div>
                 <div className="text-center">
                   <p className={`text-[9px] font-black uppercase tracking-[0.15em] whitespace-nowrap ${isCompleted ? 'text-gray-900 dark:text-white' : 'text-gray-400'}`}>
@@ -161,18 +162,17 @@ const OrderDetails: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
           <div className="bg-white dark:bg-gray-900 p-8 sm:p-12 rounded-[2.5rem] sm:rounded-[3.5rem] border border-gray-100 dark:border-gray-800 shadow-2xl shadow-gray-100 dark:shadow-none flex flex-col items-center text-center relative overflow-hidden">
-            <div className="absolute top-6 right-6">
-               <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm ${
-                order.status === 'delivered' ? 'bg-green-50 text-green-600 border-green-100 dark:bg-green-950/30 dark:text-green-400 dark:border-green-900' :
-                order.status === 'cancelled' ? 'bg-red-50 text-red-600 border-red-100 dark:bg-red-950/30 dark:text-red-400 dark:border-red-900' :
-                'bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-950/30 dark:text-orange-400 dark:border-orange-900 animate-pulse'
-              }`}>
-                {order.status.replace('_', ' ')}
-              </span>
-            </div>
-
             <div className="space-y-4 mb-8">
-              <h1 className="text-3xl sm:text-5xl font-black text-gray-900 dark:text-white leading-tight">Order Progress</h1>
+              <div className="flex flex-col items-center gap-4 mb-2">
+                 <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm ${
+                  order.status === 'delivered' ? 'bg-green-50 text-green-600 border-green-100 dark:bg-green-950/30 dark:text-green-400 dark:border-green-900' :
+                  order.status === 'cancelled' ? 'bg-red-50 text-red-600 border-red-100 dark:bg-red-950/30 dark:text-red-400 dark:border-red-900' :
+                  'bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-950/30 dark:text-orange-400 dark:border-orange-900 animate-pulse'
+                }`}>
+                  {order.status.replace('_', ' ')}
+                </span>
+                <h1 className="text-3xl sm:text-5xl font-black text-gray-900 dark:text-white leading-tight">Order Progress</h1>
+              </div>
               <p className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] font-mono">#{order.id.toUpperCase()}</p>
             </div>
 
@@ -206,11 +206,11 @@ const OrderDetails: React.FC = () => {
                         initial={false}
                         animate={{ 
                           scale: isCurrent ? 1.2 : 1,
-                          backgroundColor: isCompleted ? (isCurrent ? '#f97316' : '#fff') : 'transparent',
-                          borderColor: isCompleted ? (isCurrent ? '#f97316' : '#fff') : '#e5e7eb',
+                          backgroundColor: isCompleted ? (isCurrent ? '#f97316' : (isDark ? '#1a1a1a' : '#fff')) : 'transparent',
+                          borderColor: isCompleted ? (isCurrent ? '#f97316' : (isDark ? '#1a1a1a' : '#fff')) : (isDark ? '#333' : '#e5e7eb'),
                         }}
                         className={`w-14 h-14 rounded-2.5xl border-2 shrink-0 flex items-center justify-center transition-all ${
-                          isCompleted ? (isCurrent ? 'shadow-xl shadow-orange-500/20' : 'shadow-md') : 'border-gray-100 dark:border-gray-800'
+                          isCompleted ? (isCurrent ? 'shadow-xl shadow-orange-500/20' : (isDark ? '' : 'shadow-md')) : 'border-gray-100 dark:border-gray-800'
                         }`}
                       >
                         {React.createElement(step.icon as any, { 

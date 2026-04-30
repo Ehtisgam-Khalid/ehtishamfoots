@@ -19,7 +19,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
     audioRef.current.load();
 
-    const newSocket = io(window.location.origin);
+    const newSocket = io(window.location.origin, {
+      transports: ['websocket', 'polling'],
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+    });
     setSocket(newSocket);
 
     // Request desktop notification permission
@@ -47,11 +51,26 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     });
 
     socket.on('order_status_update', (order) => {
-      notify('Order Status Updated', `Your order is now ${order.status.replace('_', ' ')}`, 'info');
+      const statusText = order.status.replace('_', ' ');
+      notify('Order Status Updated', `Your order is now ${statusText}`, 'info');
+      
+      // Voice notification (TTS)
+      if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(`Your order status has been updated to ${statusText}`);
+        utterance.rate = 1;
+        utterance.pitch = 1;
+        window.speechSynthesis.speak(utterance);
+      }
     });
 
     socket.on('new_product', (product) => {
       notify('New Product Added!', `ShamFood added ${product.title}`, 'product');
+      
+      // Voice for new product
+      if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(`Good news! New product ${product.title} is now available on Sham Food`);
+        window.speechSynthesis.speak(utterance);
+      }
     });
 
     return () => {

@@ -7,6 +7,7 @@ import { NotificationProvider } from './contexts/NotificationContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
+import { useTheme } from './contexts/ThemeContext';
 import { Utensils, ShoppingCart, ShoppingBag, User } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -32,6 +33,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; requiresAdmin?: bool
 const AppContent: React.FC = () => {
   const { items } = useCart();
   const { profile } = useAuth();
+  const { theme } = useTheme();
   
   return (
     <div className="min-h-screen bg-[#FAFAFA] dark:bg-black font-sans antialiased text-gray-900 dark:text-gray-100 transition-colors duration-300">
@@ -114,7 +116,19 @@ const AppContent: React.FC = () => {
         </Link>
       </nav>
 
-      <Toaster position="bottom-right" />
+      <Toaster 
+        position="bottom-right"
+        toastOptions={{
+          style: {
+            background: profile?.id ? (theme === 'dark' ? '#111' : '#fff') : (theme === 'dark' ? '#111' : '#fff'),
+            color: theme === 'dark' ? '#fff' : '#000',
+            borderRadius: '1.5rem',
+            padding: '1rem 1.5rem',
+            fontWeight: 'bold',
+            border: theme === 'dark' ? '1px solid #333' : '1px solid #f3f4f6',
+          }
+        }}
+      />
     </div>
   );
 };
