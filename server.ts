@@ -17,7 +17,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const JWT_SECRET = process.env.JWT_SECRET || "default_secret_shamfood";
-const MONGODB_URI = process.env.MONGODB_URI;
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://ehtishamarain567_db_user:qkq8oyRzqHlmAgpm@cluster0.wjptyli.mongodb.net/shamfood?retryWrites=true&w=majority&appName=Cluster0";
+
+// Disable buffering to avoid long timeouts when disconnected
+mongoose.set('strictQuery', false);
 
 // Cloudinary Config
 cloudinary.config({
@@ -112,15 +115,22 @@ async function startServer() {
   let isConnected = false;
   if (MONGODB_URI) {
     console.log("Attempting to connect to MongoDB Atlas...");
+    // Log a masked version of the URI for debugging (without password)
+    const maskedUri = MONGODB_URI.replace(/:([^@]+)@/, ":****@");
+    console.log(`Connecting to: ${maskedUri}`);
+
     try {
       await mongoose.connect(MONGODB_URI, {
-        serverSelectionTimeoutMS: 10000, 
-        connectTimeoutMS: 10000,
+        serverSelectionTimeoutMS: 15000, 
+        connectTimeoutMS: 15000,
       });
       console.log("✅ Connected to MongoDB Atlas successfully");
       isConnected = true;
-    } catch (err) {
-      console.error("❌ MongoDB connection error:", err);
+    } catch (err: any) {
+      console.error("❌ MongoDB connection error:", err.message);
+      if (err.message.includes("IP address")) {
+        console.error("HINT: Please white-list '0.0.0.0/0' in your MongoDB Atlas Network Access settings.");
+      }
     }
   } else {
     console.warn("⚠️ MONGODB_URI not found. Please add it to your Project Settings/Secrets in AI Studio.");
@@ -144,8 +154,9 @@ async function startServer() {
     if (req.path === "/health") return next();
     
     if (!isConnected) {
+      console.error(`Blocked API call to ${req.path} because DB is disconnected.`);
       return res.status(503).json({ 
-        message: "Database connection not established. Please add your connection string (with the correct password) to MONGODB_URI in the Settings menu.",
+        message: "Database connection failed. 1. Check your Atlas Network Access (0.0.0.0/0). 2. Verify your password in the code/settings.",
         database: "disconnected"
       });
     }
