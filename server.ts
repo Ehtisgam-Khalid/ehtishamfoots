@@ -922,6 +922,27 @@ async function startServer() {
     }
   });
 
+  app.delete("/api/reviews/:id", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader) return res.status(401).json({ message: "Unauthorized" });
+      
+      const token = authHeader.split(" ")[1];
+      const decoded: any = jwt.verify(token, JWT_SECRET);
+
+      const user = await User.findOne({ uid: decoded.uid });
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const targetId = String(req.params.id).trim();
+      await Review.findOneAndDelete({ id: targetId });
+      res.json({ message: "Review deleted successfully" });
+    } catch (err) {
+      res.status(500).json({ message: "Delete failed" });
+    }
+  });
+
   // --- Health Check ---
   app.get("/api/health", (req, res) => {
     res.json({ 

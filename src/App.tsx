@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -30,10 +30,25 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; requiresAdmin?: bool
   return <>{children}</>;
 };
 
+import { LoadingScreen } from './components/LoadingScreen';
+
 const AppContent: React.FC = () => {
   const { items } = useCart();
   const { profile } = useAuth();
   const { theme } = useTheme();
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+  useEffect(() => {
+    // Simulate initial loading time for a better UX transition
+    const timer = setTimeout(() => {
+      setIsInitialLoading(false);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isInitialLoading) {
+    return <LoadingScreen />;
+  }
   
   return (
     <div className="min-h-screen bg-[#FAFAFA] dark:bg-black font-sans antialiased text-gray-900 dark:text-gray-100 transition-colors duration-300">

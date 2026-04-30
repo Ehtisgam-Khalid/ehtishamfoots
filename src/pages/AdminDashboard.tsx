@@ -4,18 +4,19 @@ import api from '../services/api';
 import toast from 'react-hot-toast';
 import { 
   LayoutDashboard, ShoppingBag, Package, Settings, Plus, 
-  Trash2, Edit3, X, Check, CreditCard, Loader2, User, MapPin, Eye, Upload, Image as ImageIcon
+  Trash2, Edit3, X, Check, CreditCard, Loader2, User, MapPin, Eye, Upload, Image as ImageIcon, Star, MessageSquare
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatPrice } from '../lib/utils';
 import { io } from 'socket.io-client';
 
 const AdminDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'stats' | 'products' | 'orders' | 'categories'>('stats');
+  const [activeTab, setActiveTab] = useState<'stats' | 'products' | 'orders' | 'categories' | 'reviews'>('stats');
   const [statsFilter, setStatsFilter] = useState<'today' | 'week' | 'month' | 'year' | 'all'>('all');
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -43,14 +44,16 @@ const AdminDashboard: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      const [productsRes, ordersRes, categoriesRes] = await Promise.all([
+      const [productsRes, ordersRes, categoriesRes, reviewsRes] = await Promise.all([
         api.get('/products'),
         api.get('/orders'),
-        api.get('/categories')
+        api.get('/categories'),
+        api.get('/reviews')
       ]);
       setProducts(Array.isArray(productsRes.data) ? productsRes.data : []);
       setOrders(Array.isArray(ordersRes.data) ? ordersRes.data : []);
       setCategories(Array.isArray(categoriesRes.data) ? categoriesRes.data : []);
+      setReviews(Array.isArray(reviewsRes.data) ? reviewsRes.data : []);
     } catch (err) {
       toast.error('Failed to fetch admin data');
     } finally {
@@ -214,6 +217,19 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handleDeleteReview = async (reviewId: string) => {
+    const confirmDelete = window.confirm('Are you sure you want to delete this review?');
+    if (!confirmDelete) return;
+
+    try {
+      await api.delete(`/reviews/${reviewId}`);
+      toast.success('Review deleted successfully');
+      await fetchData();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Delete failed');
+    }
+  };
+
   const handleAddCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -321,6 +337,7 @@ const AdminDashboard: React.FC = () => {
           { id: 'orders', label: 'Orders', icon: ShoppingBag },
           { id: 'products', label: 'Products', icon: Package },
           { id: 'categories', label: 'Categories', icon: Settings },
+          { id: 'reviews', label: 'Reviews', icon: Star },
         ].map(item => (
           <button
             key={item.id}
@@ -602,6 +619,56 @@ const AdminDashboard: React.FC = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {activeTab === 'reviews' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {reviews.length === 0 ? (
+                  <div className="md:col-span-2 text-center py-20 bg-white dark:bg-gray-900 rounded-[2.5rem] border border-gray-100 dark:border-gray-800">
+                    <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500 font-bold">No reviews yet.</p>
+                  </div>
+                ) : (
+                  reviews.map(review => (
+                    <div key={review.id} className="bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 relative group overflow-hidden">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-orange-100 dark:bg-orange-950/30 text-orange-600 rounded-2xl flex items-center justify-center font-black text-xl">
+                            {review.userName?.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <h4 className="font-black text-gray-900 dark:text-white">{review.userName}</h4>
+                            <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">
+                              {new Date(review.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center bg-orange-50 dark:bg-orange-950/30 px-3 py-1.5 rounded-xl border border-orange-100 dark:border-orange-900">
+                          <Star className="w-4 h-4 text-orange-500 fill-orange-500 mr-1.5" />
+                          <span className="font-black text-orange-600 text-sm">{review.rating}</span>
+                        </div>
+                      </div>
+                      
+                      <p className="text-gray-600 dark:text-gray-400 font-bold leading-relaxed mb-6 italic">
+                        "{review.comment}"
+                      </p>
+
+                      <div className="flex items-center justify-between pt-6 border-t border-gray-50 dark:border-gray-800">
+                        <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest font-mono">
+                          Order ID: #{review.orderId?.slice(0, 8).toUpperCase()}
+                        </p>
+                        <button 
+                          onClick={() => handleDeleteReview(review.id)}
+                          className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 rounded-2xl hover:bg-red-600 hover:text-white transition-all shadow-sm border border-red-100 dark:border-red-900 active:scale-95 group/del"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span className="text-[10px] font-black uppercase tracking-widest overflow-hidden w-0 group-hover/del:w-16 transition-all duration-300">Delete</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             )}
           </div>
