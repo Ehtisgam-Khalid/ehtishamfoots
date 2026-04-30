@@ -467,16 +467,20 @@ async function startServer() {
       const { image, folder = 'shamfood' } = req.body;
       if (!image) return res.status(400).json({ message: "No image provided" });
 
-      if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY) {
+      if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
+        console.log(`[STORAGE] Uploading to Cloudinary (folder: ${folder})...`);
         const uploadResponse = await cloudinary.uploader.upload(image, {
           folder: folder,
           resource_type: 'auto'
         });
+        console.log(`[STORAGE] Upload successful: ${uploadResponse.secure_url}`);
         res.json({ url: uploadResponse.secure_url });
       } else {
-        // Mock success in dev mode if credentials missing
-        console.log("[STORAGE-DEBUG] Mocking upload (Cloudinary credentials missing)");
-        res.json({ url: image.startsWith('data:') ? 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c' : image });
+        // Fallback: use the original image string (data URL)
+        console.warn("[STORAGE-WARNING] Cloudinary credentials missing. Storing image as Data URL in MongoDB.");
+        // Limit logging of potentially huge base64 strings
+        console.log(`[STORAGE] Received image data: ${image.substring(0, 100)}...`);
+        res.json({ url: image });
       }
     } catch (err: any) {
       console.error("Upload Error:", err);

@@ -17,6 +17,7 @@ const AdminDashboard: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
 
   // New product form
   const [showAddModal, setShowAddModal] = useState(false);
@@ -76,6 +77,7 @@ const AdminDashboard: React.FC = () => {
   const handleImageChange = async (file: File, type: 'new' | 'edit') => {
     if (!file) return;
     const loadingToast = toast.loading('Uploading tasty photo...');
+    setIsUploading(true);
     try {
       const url = await uploadImage(file);
       if (type === 'new') {
@@ -86,6 +88,8 @@ const AdminDashboard: React.FC = () => {
       toast.success('Photo uploaded!', { id: loadingToast });
     } catch (err) {
       toast.error('Upload failed. Try again!', { id: loadingToast });
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -129,6 +133,14 @@ const AdminDashboard: React.FC = () => {
 
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isUploading) {
+      toast.error('Please wait for the image to finish uploading');
+      return;
+    }
+    if (!newProduct.image) {
+      toast.error('Please upload an image for the product');
+      return;
+    }
     try {
       await api.post('/products', newProduct);
       toast.success('Product added successfully');
@@ -765,7 +777,15 @@ const AdminDashboard: React.FC = () => {
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 block">Short Description</label>
                 <textarea value={editingProduct.description} onChange={e => setEditingProduct({...editingProduct, description: e.target.value})} className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-orange-500 rounded-[1.5rem] outline-none resize-none h-32 dark:text-white font-bold shadow-inner" />
               </div>
-              <button type="submit" className="sm:col-span-2 bg-orange-500 text-white py-6 rounded-[2rem] font-black text-xl hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/20 active:scale-95">Update Menu Item</button>
+              <button 
+                type="submit" 
+                disabled={isUploading}
+                className={`sm:col-span-2 bg-orange-500 text-white py-6 rounded-[2rem] font-black text-xl hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/20 active:scale-95 flex items-center justify-center gap-3 ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {isUploading ? (
+                  <><Loader2 className="w-6 h-6 animate-spin" /> Uploading...</>
+                ) : 'Update Menu Item'}
+              </button>
             </form>
           </motion.div>
         </div>
@@ -847,7 +867,15 @@ const AdminDashboard: React.FC = () => {
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 block">Meal Description</label>
                 <textarea value={newProduct.description} onChange={e => setNewProduct({...newProduct, description: e.target.value})} className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-2 border-transparent focus:border-orange-500 rounded-[1.5rem] outline-none resize-none h-32 dark:text-white font-bold shadow-inner" placeholder="Tell us about the ingredients..." />
               </div>
-              <button type="submit" className="sm:col-span-2 bg-orange-500 text-white py-6 rounded-[2rem] font-black text-xl hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/20 active:scale-95">Launch Food Item</button>
+              <button 
+                type="submit" 
+                disabled={isUploading}
+                className={`sm:col-span-2 bg-orange-500 text-white py-6 rounded-[2rem] font-black text-xl hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/20 active:scale-95 flex items-center justify-center gap-3 ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {isUploading ? (
+                  <><Loader2 className="w-6 h-6 animate-spin" /> Uploading...</>
+                ) : 'Launch Food Item'}
+              </button>
             </form>
           </motion.div>
         </div>

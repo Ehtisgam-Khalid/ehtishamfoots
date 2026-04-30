@@ -176,7 +176,7 @@ const Home: React.FC = () => {
               >
                 <div className="relative h-48 md:h-56 overflow-hidden">
                   <img 
-                    src={product.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=1000'} 
+                    src={product.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c'} 
                     alt={product.title} 
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                     referrerPolicy="no-referrer"
