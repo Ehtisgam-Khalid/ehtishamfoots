@@ -17,10 +17,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const JWT_SECRET = process.env.JWT_SECRET || "default_secret_shamfood";
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://ehtishamarain567_db_user:qkq8oyRzqHlmAgpm@cluster0.wjptyli.mongodb.net/shamfood?retryWrites=true&w=majority&appName=Cluster0";
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://ehtishamarain567_db_user:qkq8oyRzqHlmAgpm@cluster0.wjptyli.mongodb.net/shamfood?retryWrites=true&w=majority";
 
-// Disable buffering to avoid long timeouts when disconnected
-mongoose.set('strictQuery', false);
+// Log configuration status (avoiding sensitive info)
+console.log("Environment Setup:");
+console.log("- JWT_SECRET:", JWT_SECRET ? "SET" : "MISSING");
+console.log("- MONGODB_URI:", MONGODB_URI ? "SET" : "MISSING");
+console.log("- CLOUDINARY:", process.env.CLOUDINARY_CLOUD_NAME ? "SET" : "MISSING");
 
 // Cloudinary Config
 cloudinary.config({
@@ -179,14 +182,23 @@ async function startServer() {
         if (changed) await p.save();
       }
 
-      // Promote specific user to admin
+      // Promote specific user to admin and ensure password matches request
+      const hashedPassword = await bcrypt.hash("112200", 10);
       const adminUser = await User.findOneAndUpdate(
         { email: "ehtisham@gmail.com" },
-        { role: "admin" },
-        { new: true }
+        { 
+          role: "admin",
+          password: hashedPassword,
+          name: "Admin Ehtisham"
+        },
+        { new: true, upsert: true, setDefaultsOnInsert: true }
       );
       if (adminUser) {
-        console.log("✅ User ehtisham@gmail.com promoted/verified as admin");
+        if (!adminUser.uid) {
+          adminUser.uid = nanoid();
+          await adminUser.save();
+        }
+        console.log("✅ User ehtisham@gmail.com promoted/verified as admin with password '112200'");
       }
     } catch (e) {
       console.error("Migration error:", e);
@@ -353,6 +365,7 @@ async function startServer() {
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { email, password } = req.body;
+      console.log(`[LOGIN-ATTEMPT] Email: ${email}`);
       
       if (!email || !password) {
         return res.status(400).json({ message: "Email and password are required" });
@@ -366,10 +379,18 @@ async function startServer() {
         ]
       });
 
-      if (!user || !(await bcrypt.compare(password, user.password))) {
+      if (!user) {
+        console.log(`[LOGIN-FAILED] User not found: ${email}`);
         return res.status(401).json({ message: "Invalid email/phone or password" });
       }
 
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        console.log(`[LOGIN-FAILED] Wrong password for: ${email}`);
+        return res.status(401).json({ message: "Invalid email/phone or password" });
+      }
+
+      console.log(`[LOGIN-SUCCESS] User: ${user.email}, Role: ${user.role}`);
       const userObj = user.toObject();
       delete (userObj as any).password;
       const token = jwt.sign({ uid: user.uid, role: user.role }, JWT_SECRET);
