@@ -111,17 +111,19 @@ const Review = mongoose.model("Review", reviewSchema);
 async function startServer() {
   let isConnected = false;
   if (MONGODB_URI) {
+    console.log("Attempting to connect to MongoDB Atlas...");
     try {
       await mongoose.connect(MONGODB_URI, {
-        serverSelectionTimeoutMS: 5000, // Fail faster if URI is wrong
+        serverSelectionTimeoutMS: 10000, 
+        connectTimeoutMS: 10000,
       });
-      console.log("Connected to MongoDB Atlas");
+      console.log("✅ Connected to MongoDB Atlas successfully");
       isConnected = true;
     } catch (err) {
-      console.error("MongoDB connection error:", err);
+      console.error("❌ MongoDB connection error:", err);
     }
   } else {
-    console.warn("MONGODB_URI not found. App will likely fail on DB operations. Please set MONGODB_URI in environment variables.");
+    console.warn("⚠️ MONGODB_URI not found. Please add it to your Project Settings/Secrets in AI Studio.");
   }
 
   const app = express();
@@ -143,7 +145,7 @@ async function startServer() {
     
     if (!isConnected) {
       return res.status(503).json({ 
-        message: "Database connection not established. Please verify your collection is active and MONGODB_URI is correct.",
+        message: "Database connection not established. Please add your connection string (with the correct password) to MONGODB_URI in the Settings menu.",
         database: "disconnected"
       });
     }
