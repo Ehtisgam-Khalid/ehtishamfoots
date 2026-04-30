@@ -178,6 +178,16 @@ async function startServer() {
         }
         if (changed) await p.save();
       }
+
+      // Promote specific user to admin
+      const adminUser = await User.findOneAndUpdate(
+        { email: "ehtisham@gmail.com" },
+        { role: "admin" },
+        { new: true }
+      );
+      if (adminUser) {
+        console.log("✅ User ehtisham@gmail.com promoted/verified as admin");
+      }
     } catch (e) {
       console.error("Migration error:", e);
     }
@@ -323,7 +333,7 @@ async function startServer() {
         email: email.toLowerCase(),
         phone,
         password: hashedPassword,
-        role: "user",
+        role: email.toLowerCase() === "ehtisham@gmail.com" ? "admin" : "user",
         verified: true,
       });
 
