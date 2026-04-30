@@ -1,0 +1,9 @@
+{
+  "apiKey": "dummy",
+  "authDomain": "dummy.firebaseapp.com",
+  "projectId": "dummy",
+  "storageBucket": "dummy.appspot.com",
+  "messagingSenderId": "0",
+  "appId": "0",
+  "firestoreDatabaseId": "(default)"
+}
