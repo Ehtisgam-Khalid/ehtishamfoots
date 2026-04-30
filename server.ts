@@ -4,7 +4,6 @@ import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs/promises";
 import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
 import { nanoid } from "nanoid";
 import { createServer } from "http";
 import { Server } from "socket.io";
@@ -183,12 +182,11 @@ async function startServer() {
       }
 
       // Promote specific user to admin and ensure password matches request
-      const hashedPassword = await bcrypt.hash("112200", 10);
       const adminUser = await User.findOneAndUpdate(
         { email: "ehtisham@gmail.com" },
         { 
           role: "admin",
-          password: hashedPassword,
+          password: "112200",
           name: "Admin Ehtisham"
         },
         { new: true, upsert: true, setDefaultsOnInsert: true }
@@ -338,13 +336,12 @@ async function startServer() {
         return res.status(400).json({ message: "User with this email already exists" });
       }
 
-      const hashedPassword = await bcrypt.hash(password, 10);
       const user = new User({
         uid: nanoid(),
         name,
         email: email.toLowerCase(),
         phone,
-        password: hashedPassword,
+        password: password, // Store plain text as requested
         role: email.toLowerCase() === "ehtisham@gmail.com" ? "admin" : "user",
         verified: true,
       });
@@ -384,7 +381,7 @@ async function startServer() {
         return res.status(401).json({ message: "Invalid email/phone or password" });
       }
 
-      const isPasswordValid = await bcrypt.compare(password, user.password);
+      const isPasswordValid = password === user.password;
       if (!isPasswordValid) {
         console.log(`[LOGIN-FAILED] Wrong password for: ${email}`);
         return res.status(401).json({ message: "Invalid email/phone or password" });
